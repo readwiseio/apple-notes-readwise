@@ -37,8 +37,12 @@
   },
   "license": "MIT",
   "dependencies": {
+    "@types/markdown-it": "^14.1.2",
     "@zip.js/zip.js": "^2.7.53",
     "electron-squirrel-startup": "^1.0.1",
-    "electron-store": "^10.0.0"
+    "electron-store": "^10.0.0",
+    "markdown-it": "^14.1.0",
+    "markdown-it-emoji": "^3.0.0",
+    "run-applescript": "^7.0.0"
   }
 }

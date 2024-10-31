@@ -1,8 +1,12 @@
-import { app, ipcMain } from "electron";
 import Store from "electron-store";
-import fs from "fs";
-import path from "path";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
+import * as zip from "@zip.js/zip.js";
+import MarkdownIt from 'markdown-it'
 
+const md = new MarkdownIt();
+
+const execFileAsync = promisify(execFile);
 interface ReadwisePluginSettings {
   token: string;
 
@@ -83,22 +87,75 @@ function getAuthHeaders() {
   };
 }
 
-async function saveZipFile(blob, fileName = "backup.zip") {
+// async function saveZipFile(blob, fileName = "backup.zip") {
+//   try {
+//     // Convert the blob to an array buffer
+//     const arrayBuffer = await blob.arrayBuffer();
+//     const buffer = Buffer.from(arrayBuffer);
+
+//     // Set the path to the Downloads folder with the given filename
+//     const downloadsPath = path.join(app.getPath("downloads"), fileName);
+
+//     // Write the file
+//     fs.writeFileSync(downloadsPath, buffer);
+
+//     console.log(`ZIP file saved to: ${downloadsPath}`);
+//   } catch (error) {
+//     console.error("Error saving ZIP file: ", error);
+//   }
+// }
+
+async function runAppleScript(script: string, { humanReadableOutput = true } = {}): Promise<string> {
+
+  const outputArguments = humanReadableOutput ? [] : ["-ss"];
+
+  const { stdout } = await execFileAsync("osascript", ["-e", script, ...outputArguments]);
+  return stdout.trim();
+}
+
+function _escape_for_applescript(text: string | number | null | undefined) {
+  if (!text && text !== 0) return '' // Handle undefined, null, or empty cases
+  return text
+    .toString()
+    .replace(/\\/g, '\\\\') // Escape backslashes
+    .replace(/"/g, '\\"') // Escape double quotes
+    .replace(/\n/g, '\\n') // Escape newlines
+}
+
+const executeAppleScript = async (script: string): Promise<string> => {
   try {
-    // Convert the blob to an array buffer
-    const arrayBuffer = await blob.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
-
-    // Set the path to the Downloads folder with the given filename
-    const downloadsPath = path.join(app.getPath("downloads"), fileName);
-
-    // Write the file
-    fs.writeFileSync(downloadsPath, buffer);
-
-    console.log(`ZIP file saved to: ${downloadsPath}`);
+    const result = await runAppleScript(script)
+    return result
   } catch (error) {
-    console.error("Error saving ZIP file: ", error);
+    console.error("Error executing AppleScript:", error)
+    throw error
   }
+}
+
+function buildAppleScripts(content: string, title: string, folder: string) {
+  
+  const appleScript = `
+        tell application "Notes"
+          set noteTitle to "${title}"
+          set noteBody to "${content}"
+          set folderName to "${folder}"
+          set theFolder to missing value
+          repeat with eachFolder in folders
+            if name of eachFolder is folderName then
+              set theFolder to eachFolder
+              exit repeat
+            end if
+          end repeat
+          if theFolder is missing value then
+            set theFolder to (make new folder with properties {name:folderName})
+          end if
+          make new note at theFolder with properties {name: noteTitle, body: noteBody}
+        end tell
+      `
+
+  console.log('[MAIN]: AppleScript:', appleScript)
+
+  return appleScript
 }
 
 async function downloadExport(exportID: number): Promise<void> {
@@ -132,87 +189,44 @@ async function downloadExport(exportID: number): Promise<void> {
     return;
   }
 
-  // save the zip file to the user's downloads folder before extracting the contents
-  await saveZipFile(blob, `readwise-export-${exportID}.zip`);
+  const zipReader = new zip.ZipReader(new zip.BlobReader(blob));
 
-  // const blobReader = new zip.BlobReader(blob);
-  // const zipReader = new zip.ZipReader(blobReader);
-  // const entries = await zipReader.getEntries();
-  // // this.notice("Saving files...", false, 30);
-  // console.log("Readwise Official plugin: Saving files...");
-  // if (entries.length) {
-  //   for (const entry of entries) {
-  //     // will be derived from the entry's filename
-  //     let bookID: string;
+  const entries = await zipReader.getEntries();
 
-  //     /** Combo of file `readwiseDir`, book name, and book ID.
-  //      * Example: `Readwise/Books/Name of Book--12345678.md` */
-  //     const readwiseDir = store.get("readwiseDir");
-  //     const processedFileName = normalizePath(entry.filename.replace(/^Readwise/, readwiseDir));
+  const notesFolder = store.get("readwiseDir");
 
-  //     // derive the original name `(readwiseDir + book name).md`
-  //     let originalName = processedFileName;
-  //     // extracting book ID from file name
-  //     let split = processedFileName.split("--");
-  //     if (split.length > 1) {
-  //       originalName = split.slice(0, -1).join("--") + ".md";
-  //       bookID = split.last().match(/\d+/g)[0];
+  // Output entry names
+  for (const entry of entries) {
+    console.log(`Found entry: ${entry.filename}`);
 
-  //       // track the book
-  //       this.settings.booksIDsMap[originalName] = bookID;
-  //     }
+    // Readwise/Books/Introduction-to-Algorithms--44011615.md
+    // extract the filename and book id
+    // 44011615
+    const originalFileName = entry.filename;
+    const originalName = originalFileName.split('--')[0].split('/')[2];
+    const bookId = originalFileName.split('--')[1].split('.')[0];
+    console.log(`Original name: ${originalName}`);
+    console.log(`Book ID: ${bookId}`);
 
-  //     try {
-  //       const undefinedBook = !bookID || !processedFileName;
-  //       const isReadwiseSyncFile = processedFileName === `${readwiseDir}/${READWISE_SYNC_FILENAME}.md`;
-  //       if (undefinedBook && !isReadwiseSyncFile) {
-  //         throw new Error(`Book ID or file name not found for entry: ${entry.filename}`);
-  //       }
-  //     } catch (e) {
-  //       console.error(`Error while processing entry: ${entry.filename}`);
-  //     }
+    // Read the contents of the file and convert it to html
+    const content = await entry.getData(new zip.TextWriter());
 
-  //     // save the entry in settings to ensure that it can be
-  //     // retried later when deleted files are re-synced if
-  //     // the user has `settings.refreshBooks` enabled
-  //     if (bookID) await this.saveSettings();
+    const html = md.render(content);
+    
+    // clean the html for AppleScript
+    const cleanedHtml = _escape_for_applescript(html);
 
-  //     try {
-  //       // ensure the directory exists
-  //       let dirPath = processedFileName.replace(/\/*$/, '').replace(/^(.+)\/[^\/]*?$/, '$1');
-  //       const exists = await this.fs.exists(dirPath);
-  //       if (!exists) {
-  //         await this.fs.mkdir(dirPath);
-  //       }
-  //       // write the actual files
-  //       const contents = await entry.getData(new zip.TextWriter());
-  //       let contentToSave = contents;
+    // build the AppleScript
+    const script = buildAppleScripts(cleanedHtml, originalName, notesFolder);
 
-  //       if (await this.fs.exists(originalName)) {
-  //         // if the file already exists we need to append content to existing one
-  //         const existingContent = await this.fs.read(originalName);
-  //         contentToSave = existingContent + contents;
-  //       }
-  //       await this.fs.write(originalName, contentToSave);
-  //     } catch (e) {
-  //       console.log(`Readwise Official plugin: error writing ${processedFileName}:`, e);
-  //       this.notice(`Readwise: error while writing ${processedFileName}: ${e}`, true, 4, true);
-  //       if (bookID) {
-  //         // handles case where user doesn't have `settings.refreshBooks` enabled
-  //         await this.addToFailedBooks(bookID);
-  //         await this.saveSettings();
-  //         return;
-  //       }
-  //       // communicate with readwise?
-  //     }
+    // execute the AppleScript
+    const result = await executeAppleScript(script);
 
-  //     await this.removeBooksFromRefresh([bookID]);
-  //     await this.removeBookFromFailedBooks([bookID]);
-  //   }
-  //   await this.saveSettings();
-  // }
-  // close the ZipReader
-  // await zipReader.close();
+    console.log(result);
+  }
+
+  // Close the reader
+  await zipReader.close();
   await acknowledgeSyncCompleted();
   await handleSyncSuccess("Synced", exportID);
   console.log("Readwise Official plugin: Synced!", exportID);
