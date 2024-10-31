@@ -71,6 +71,20 @@ ipcMain.handle('connect-to-readwise', (event => {
   }
 }))
 
+ipcMain.handle('open-custom-format-window', (event => {
+
+  const loginWindow = new BrowserWindow({
+    width: 800,
+    height: 600,
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true,
+    }
+  })
+
+  loginWindow.loadURL(`https://readwise.io/export/obsidian/preferences`);
+}))
+
 // Quit when all windows are closed, except on macOS. There, it's common
 // for applications and their menu bar to stay active until the user quits
 // explicitly with Cmd + Q.

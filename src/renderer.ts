@@ -43,4 +43,9 @@ document.getElementById('sync-highlights').addEventListener('click', async () =>
     console.log("Message from main process: ", msg);
 });
 
+document.getElementById('customize-format').addEventListener('click', async () => {
+    window.api.readwise.openCustomFormatWindow();
+});
+
+
 console.log('👋 This message is being logged by "renderer.ts", included via Vite');

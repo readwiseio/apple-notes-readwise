@@ -8,6 +8,7 @@ interface Window {
         readwise: {
             connectToReadwise: () => Promise<string>;
             syncHighlights: () => Promise<string>;
+            openCustomFormatWindow: () => void;
         }
     };
 }

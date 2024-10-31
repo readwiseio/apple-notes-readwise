@@ -21,6 +21,9 @@ contextBridge.exposeInMainWorld('api', {
         },
         syncHighlights() {
             return ipcRenderer.invoke('sync-highlights');
+        },
+        openCustomFormatWindow() {
+            ipcRenderer.invoke('open-custom-format-window');
         }
     },
 })
