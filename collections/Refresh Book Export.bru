@@ -1,0 +1,29 @@
+meta {
+  name: Refresh Book Export
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{baseURL}}/api/get_export_status
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Token {{token}}
+  Obsidian-Client: {{uuid}}
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "exportTarget": "obsidian",
+    "books": []
+  }
+}
+
+body:multipart-form {
+  exportTarget: obsidian
+  books: []
+}

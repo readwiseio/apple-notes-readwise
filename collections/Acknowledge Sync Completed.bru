@@ -1,0 +1,17 @@
+meta {
+  name: Acknowledge Sync Completed
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseURL}}/api/get_export_status
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Token {{token}}
+  Obsidian-Client: {{uuid}}
+  Content-Type: application/json
+}

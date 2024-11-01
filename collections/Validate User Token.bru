@@ -1,0 +1,21 @@
+meta {
+  name: Validate User Token
+  type: http
+  seq: 6
+}
+
+get {
+  url: {{baseURL}}/api/v2/auth
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Token {{token}}
+}
+
+tests {
+  test("User token is valid", function() {
+    expect(res.getStatus()).to.equal(204);
+  });
+}

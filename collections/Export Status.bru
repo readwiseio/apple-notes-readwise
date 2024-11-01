@@ -1,0 +1,20 @@
+meta {
+  name: Export Status
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseURL}}/api/get_export_status
+  body: none
+  auth: none
+}
+
+query {
+  exportStatusId: 
+}
+
+headers {
+  Authorization: Token {{token}}
+  Obsidian-Client: {{uuid}}
+}

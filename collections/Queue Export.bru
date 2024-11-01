@@ -1,0 +1,20 @@
+meta {
+  name: Queue Export
+  type: http
+  seq: 1
+}
+
+get {
+  url: https://readwise.io/api/obsidian/init?parentPageDeleted=false
+  body: none
+  auth: none
+}
+
+query {
+  parentPageDeleted: false
+}
+
+headers {
+  Authorization: Token {{token}}
+  Obsidian-Client: {{uuid}}
+}
