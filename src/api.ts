@@ -8,6 +8,7 @@ const md = new MarkdownIt();
 
 const execFileAsync = promisify(execFile);
 interface ReadwisePluginSettings {
+  /** Readwise API token */
   token: string;
 
   /** Folder to save highlights */
@@ -22,8 +23,13 @@ interface ReadwisePluginSettings {
   /** Automatically sync on load */
   triggerOnLoad: boolean;
 
+  /** Last successful sync status ID */
   lastSyncFailed: boolean;
+
+  /** Last successful sync status ID */
   lastSavedStatusID: number;
+
+  /** Current sync status ID */
   currentSyncStatusID: number;
 
   /** Should get any deleted books */
@@ -87,24 +93,6 @@ function getAuthHeaders() {
   };
 }
 
-// async function saveZipFile(blob, fileName = "backup.zip") {
-//   try {
-//     // Convert the blob to an array buffer
-//     const arrayBuffer = await blob.arrayBuffer();
-//     const buffer = Buffer.from(arrayBuffer);
-
-//     // Set the path to the Downloads folder with the given filename
-//     const downloadsPath = path.join(app.getPath("downloads"), fileName);
-
-//     // Write the file
-//     fs.writeFileSync(downloadsPath, buffer);
-
-//     console.log(`ZIP file saved to: ${downloadsPath}`);
-//   } catch (error) {
-//     console.error("Error saving ZIP file: ", error);
-//   }
-// }
-
 async function runAppleScript(script: string, { humanReadableOutput = true } = {}): Promise<string> {
 
   const outputArguments = humanReadableOutput ? [] : ["-ss"];
@@ -130,6 +118,25 @@ const executeAppleScript = async (script: string): Promise<string> => {
     console.error("Error executing AppleScript:", error)
     throw error
   }
+}
+
+const checkFolderExistsInAppleNotes = async (folder: string): Promise<boolean> => {
+  const script = `
+    tell application "Notes"
+        set folderName to "${folder}"
+        set folderExists to false
+        repeat with eachFolder in folders
+            if name of eachFolder is folderName then
+                set folderExists to true
+                exit repeat
+            end if
+        end repeat
+        return folderExists
+    end tell
+  `
+
+  const result = await executeAppleScript(script)
+  return result === 'true'
 }
 
 function buildAppleScripts(content: string, title: string, folder: string) {
@@ -160,13 +167,14 @@ function buildAppleScripts(content: string, title: string, folder: string) {
 
 async function downloadExport(exportID: number): Promise<void> {
   // download archive from this endpoint
-  let artifactURL = `${baseURL}/api/download_artifact/${exportID}`;
+  const artifactURL = `${baseURL}/api/download_artifact/${exportID}`;
+  // TODO: not sure when this applies... seems to stop all syncing.
   // const lastSavedStatusID = store.get("lastSavedStatusID");
   // if (exportID <= lastSavedStatusID) {
   //   console.log(
   //     `Readwise Official plugin: Already saved data from export ${exportID}`
   //   );
-  //   await handleSyncSuccess();
+  //   await handleSyncSuccess("Synced");
   //   return;
   // }
 
@@ -230,11 +238,7 @@ async function downloadExport(exportID: number): Promise<void> {
   await acknowledgeSyncCompleted();
   await handleSyncSuccess("Synced", exportID);
   console.log("Readwise Official plugin: Synced!", exportID);
-  // this.notice("Readwise sync completed", true, 1, true);
   console.log("Readwise Official plugin: completed sync");
-  // if (this.app.isMobile) {
-  //   this.notice("If you don't see all of your readwise files reload obsidian app", true,);
-  // }
 }
 
 async function acknowledgeSyncCompleted() {
@@ -354,18 +358,20 @@ async function handleSyncSuccess(msg = "Synced", exportID: number = null) {
 async function queueExport(statusId?: number) {
   if (store.get("isSyncing")) {
     console.log("Readwise sync already in progress");
-    return;
+    return "Sync already in progress";
   }
 
   console.log("Readwise Official plugin: requesting archive...");
   store.set("isSyncing", true);
 
-  const parentDeleted = true;
+  const parentDeleted = !await checkFolderExistsInAppleNotes(store.get("readwiseDir"));
+  console.log("Parent folder deleted: ", parentDeleted);
 
   let url = `${baseURL}/api/obsidian/init?parentPageDeleted=${parentDeleted}`;
   if (statusId) {
     url += `&statusId=${statusId}`;
   }
+  console.log("Readwise Official plugin: queueExport url: ", url);
 
   let response, data: ExportRequestResponse;
   const token = store.get("token");
@@ -386,9 +392,9 @@ async function queueExport(statusId?: number) {
     const lastest_id = store.get("lastSavedStatusID");
     console.log(data.latest_id)
     if (data.latest_id <= lastest_id) {
-      await handleSyncSuccess("Synced");
+      await handleSyncSuccess(); // Data is already up to date
       console.log("Readwise data is already up to date");
-      return;
+      return "Data is already up to date";
     }
 
     store.set("lastSavedStatusID", data.latest_id);
@@ -408,7 +414,7 @@ async function queueExport(statusId?: number) {
         "Latest Readwise sync already happended on your other device. Data should be up to date: ",
         response
       );
-      return;
+      return "Data is already up to date";
     }
   } else {
     console.log(
@@ -416,16 +422,64 @@ async function queueExport(statusId?: number) {
       response
     );
     await handleSyncError(getErrorMessageFromResponse(response));
-    return;
+    return "Sync failed";
   }
 }
 
-export async function syncHighlights() {
+export async function syncHighlights(bookIds?: Array<string>) {
   if (!store.get("token")) return;
 
-  // Check if there's new highlights on the server
-  await queueExport();
-  return;
+  const failedBooks = store.get("failedBooks");
+
+  let targetBookIds = [
+    ...(bookIds || []),
+    ...failedBooks,
+  ]
+
+  console.log("Readwise Official plugin: syncing highlights for books: ", targetBookIds);
+
+  const booksToRefresh = store.get("booksToRefresh");
+  const refreshBooks = store.get("refreshBooks");
+
+  if (refreshBooks) {
+    targetBookIds = [
+      ...targetBookIds,
+      ...booksToRefresh,
+    ]
+  }
+
+  if (!targetBookIds.length) {
+    console.log("Readwise Official plugin: no targetBookIds, checking for new highlights");
+    return await queueExport();
+  }
+
+  console.log("Readwise Official plugin: refreshing books: ", { targetBookIds });
+
+  try {
+    const response = await fetch(
+      // add books to next archive build from this endpoint
+      // NOTE: should only end up calling this endpoint when:
+      // 1. there are failedBooks
+      // 2. there are booksToRefresh
+      `${baseURL}/api/refresh_book_export`,
+      {
+        headers: { ...this.getAuthHeaders(), 'Content-Type': 'application/json' },
+        method: "POST",
+        body: JSON.stringify({ exportTarget: 'obsidian', books: targetBookIds })
+      }
+    );
+
+    if (response && response.ok) {
+      return await queueExport();
+    } else {
+      console.log(`Readwise Official plugin: saving book id ${bookIds} to refresh later`);
+      const deduplicatedBookIds = new Set([...this.settings.booksToRefresh, ...bookIds]);
+      store.set("booksToRefresh", Array.from(deduplicatedBookIds));
+      return;
+    }
+  } catch (e) {
+    console.log("Readwise Official plugin: fetch failed in syncBookHighlights: ", e);
+  }
 }
 
 export function getObsidianClientID() {
@@ -439,7 +493,7 @@ export function getObsidianClientID() {
   }
 }
 
-export async function getUserAuthToken(uuid: string, attempt = 0) {
+export async function getUserAuthToken(uuid: string, attempt = 0): Promise<string> {
   let response, data: ReadwiseAuthResponse;
   try {
     response = await fetch(`${baseURL}/api/auth?token=${uuid}`);
@@ -448,6 +502,7 @@ export async function getUserAuthToken(uuid: string, attempt = 0) {
       "Readwise Official plugin: fetch failed in getUserAuthToken: ",
       e
     );
+    return null;
   }
   if (response && response.ok) {
     data = await response.json();
@@ -456,19 +511,19 @@ export async function getUserAuthToken(uuid: string, attempt = 0) {
       "Readwise Official plugin: bad response in getUserAuthToken: ",
       response
     );
-    return;
+    return null;
   }
   if (data.userAccessToken) {
     console.log(
       "Readwise Official plugin: successfully authenticated with Readwise"
     );
-    store.set("token", data.userAccessToken);
+    return data.userAccessToken;
   } else {
     if (attempt > 20) {
       console.log(
         "Readwise Official plugin: reached attempt limit in getUserAuthToken"
       );
-      return;
+      return null;
     }
     console.log(
       `Readwise Official plugin: didn't get token data, retrying (attempt ${
@@ -478,5 +533,4 @@ export async function getUserAuthToken(uuid: string, attempt = 0) {
     await new Promise((resolve) => setTimeout(resolve, 1000));
     await getUserAuthToken(uuid, attempt + 1);
   }
-  return true;
 }

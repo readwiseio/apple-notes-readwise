@@ -28,24 +28,4 @@
 
 import './index.css';
 
-// get the button element by id btn and add an event listener to it 
-// when the button is clicked, the function will be executed
-document.getElementById('connect-to-readwise').addEventListener('click', async () => {
-
-    const msg = await window.api.readwise.connectToReadwise();
-    
-    console.log("Message from main process: ", msg);
-});
-
-document.getElementById('sync-highlights').addEventListener('click', async () => {
-    const msg = await window.api.readwise.syncHighlights();
-    
-    console.log("Message from main process: ", msg);
-});
-
-document.getElementById('customize-format').addEventListener('click', async () => {
-    window.api.readwise.openCustomFormatWindow();
-});
-
-
-console.log('👋 This message is being logged by "renderer.ts", included via Vite');
+import './index.tsx';

@@ -3,30 +3,11 @@
   <head>
     <meta charset="UTF-8" />
     <meta http-equiv="Content-Security-Policy" content="script-src 'self' 'unsafe-inline';" />
-    <title>Hello World!</title>
+    <title>Readwise to Apple Notes</title>
 
   </head>
   <body>
-    <h1>🍎📝 Apple Notes Export</h1>
-    <div>
-      <button id="connect-to-readwise">
-        Connect to Readwise
-      </button>
-    </div>
-    <div>
-      <button id="sync-highlights">
-        Initiate Sync
-      </button>
-    </div>
-    <div>
-      <button id="customize-format">
-        Customize 
-      </button>
-    </div>
-    <div>
-      <p>Customize base folder</p>
-      <input type="text" id="base-folder" value="Readwise"/>
-    </div>
+    <div id="root"></div>
     <script type="module" src="/src/renderer.ts"></script>
   </body>
 </html>

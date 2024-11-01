@@ -1,19 +1,21 @@
-import { app, BrowserWindow, ipcMain, Notification } from 'electron';
-import path from 'path';
-import { store, getObsidianClientID, getUserAuthToken, syncHighlights } from './api';
+import { app, BrowserWindow, ipcMain } from "electron";
+import path from "path";
+import {
+  store,
+  getObsidianClientID,
+  getUserAuthToken,
+  syncHighlights,
+} from "./api";
 
-// Handle creating/removing shortcuts on Windows when installing/uninstalling.
-if (require('electron-squirrel-startup')) {
-  app.quit();
-}
+let mainWindow: BrowserWindow;
 
 const createWindow = () => {
   // Create the browser window.
-  const mainWindow = new BrowserWindow({
+  mainWindow = new BrowserWindow({
     width: 800,
     height: 600,
     webPreferences: {
-      preload: path.join(__dirname, 'preload.js'),
+      preload: path.join(__dirname, "preload.js"),
       sandbox: true,
       contextIsolation: true,
     },
@@ -23,8 +25,17 @@ const createWindow = () => {
   if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
     mainWindow.loadURL(MAIN_WINDOW_VITE_DEV_SERVER_URL);
   } else {
-    mainWindow.loadFile(path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`));
+    mainWindow.loadFile(
+      path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`)
+    );
   }
+
+  // check if the token is "" or not
+  const tokenExsits = Boolean(store.get("token"));
+  console.log("User is authenticated: ", tokenExsits);
+  mainWindow.webContents.once("did-finish-load", () => {
+    mainWindow.webContents.send("login-status", tokenExsits);
+  });
 
   // Open the DevTools.
   mainWindow.webContents.openDevTools();
@@ -33,25 +44,21 @@ const createWindow = () => {
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
-app.on('ready', createWindow);
+app.on("ready", createWindow);
 
-ipcMain.on('electron-store-get', async (_, key) => {
+ipcMain.handle("electron-store-get", async (_, key) => {
   return store.get(key);
-})
+});
 
-ipcMain.on('electron-store-set', async (_, key, value) => {
+ipcMain.on("electron-store-set", async (_, key, value) => {
   store.set(key, value);
-})
+});
 
-ipcMain.on('send-notification', (_, message) => {
-  new Notification({ title: 'Notification', body: message }).show();
-})
+ipcMain.handle("sync-highlights", () => {
+  return syncHighlights();
+});
 
-ipcMain.handle('sync-highlights', (event => {
-    return syncHighlights();
-}))
-
-ipcMain.handle('connect-to-readwise', (event => {
+ipcMain.handle("connect-to-readwise", async (event) => {
   const uuid = getObsidianClientID();
 
   const loginWindow = new BrowserWindow({
@@ -60,41 +67,48 @@ ipcMain.handle('connect-to-readwise', (event => {
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
-    }
-  })
+    },
+  });
 
-  loginWindow.loadURL(`https://readwise.io/api_auth?token=${uuid}&service=obsidian`);
+  loginWindow.loadURL(
+    `https://readwise.io/api_auth?token=${uuid}&service=obsidian`
+  );
 
-  const success = getUserAuthToken(uuid);
-  if (success) {
-    return 'Readwise connected';
+  const token = await getUserAuthToken(uuid);
+  if (token) {
+    await store.set("token", token);
+    mainWindow.webContents.send("login-status", true);
+    return "Connected to Readwise";
+  } else {
+    console.error("Failed to connect to Readwise");
+    mainWindow.webContents.send("login-status", false);
+    return "Failed to connect to Readwise";
   }
-}))
+});
 
-ipcMain.handle('open-custom-format-window', (event => {
-
+ipcMain.handle("open-custom-format-window", (event) => {
   const loginWindow = new BrowserWindow({
     width: 800,
     height: 600,
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
-    }
-  })
+    },
+  });
 
   loginWindow.loadURL(`https://readwise.io/export/obsidian/preferences`);
-}))
+});
 
 // Quit when all windows are closed, except on macOS. There, it's common
 // for applications and their menu bar to stay active until the user quits
 // explicitly with Cmd + Q.
-app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') {
+app.on("window-all-closed", () => {
+  if (process.platform !== "darwin") {
     app.quit();
   }
 });
 
-app.on('activate', () => {
+app.on("activate", () => {
   // On OS X it's common to re-create a window in the app when the
   // dock icon is clicked and there are no other windows open.
   if (BrowserWindow.getAllWindows().length === 0) {
