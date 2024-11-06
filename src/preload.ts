@@ -10,12 +10,15 @@ contextBridge.exposeInMainWorld("api", {
   setStoreValue: (key: string, value: any) => {
     ipcRenderer.send("electron-store-set", key, value);
   },
+  getUserAccounts: () => {
+    return ipcRenderer.invoke("get-user-accounts");
+  },
   readwise: {
     connectToReadwise() {
       return ipcRenderer.invoke("connect-to-readwise");
     },
-    syncHighlights(baseFolder: string) {
-      return ipcRenderer.invoke("sync-highlights", baseFolder);
+    syncHighlights() {
+      return ipcRenderer.invoke("sync-highlights");
     },
     openCustomFormatWindow() {
       ipcRenderer.invoke("open-custom-format-window");

@@ -1,7 +1,7 @@
 interface Window {
     api: {
-        getStoreValue: (key: string) => any;
-        setStoreValue: (key: string, value: any) => void
+        getStoreValue: (key: string) => Promise<any>;
+        setStoreValue: (key: string, value: any) => Promise<any>
         readwise: {
             connectToReadwise: () => Promise<string>;
             syncHighlights: () => Promise<string>;

@@ -50,6 +50,10 @@ const createWindow = () => {
 // Some APIs can only be used after this event occurs.
 app.on("ready", createWindow);
 
+ipcMain.on("login-status", (event, loggedIn) => {
+  mainWindow.webContents.send("login-status", loggedIn);
+});
+
 ipcMain.handle("electron-store-get", async (_, key) => {
   return store.get(key);
 });
@@ -61,6 +65,18 @@ ipcMain.on("electron-store-set", async (_, key, value) => {
 ipcMain.handle("sync-highlights", () => {
   return syncHighlights();
 });
+
+// ipcMain.handle("get-user-accounts", async () => {
+//   const accounts = getAppleNotesAccounts();
+
+//   if (!accounts) {
+//     return "No accounts found";
+//   }
+
+//   // build map of value and labels for combobox
+//   const accountMap = accounts.map((account) => {
+//     return { label: account.title(), value: account };
+//   });
 
 ipcMain.handle("connect-to-readwise", async (event) => {
   const uuid = getObsidianClientID();

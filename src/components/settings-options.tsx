@@ -1,6 +1,9 @@
+import { useEffect, useState } from "react";
 import { Button } from "./ui/button";
+import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { useToast } from "../hooks/use-toast";
+import { debounce } from "lodash";
 
 interface SettingsOptionsProps {
   onIsSyncing: (isSyncing: boolean) => void;
@@ -8,6 +11,50 @@ interface SettingsOptionsProps {
 
 export function SettingsOptions({ onIsSyncing }: SettingsOptionsProps) {
   const { toast } = useToast();
+  const [baseFolder, setBaseFolder] = useState("Readwise");
+  const [account, setAccount] = useState("iCloud");
+
+  useEffect(() => {
+    const loadSettings = async () => {
+      const folder = await window.api.getStoreValue("readwiseDir");
+      const account = await window.api.getStoreValue("account");
+      if (folder) setBaseFolder(folder);
+      if (account) setAccount(account);
+    }
+
+    loadSettings();
+  }, []);
+
+
+  const saveBaseFolder = debounce(async (folder: string) => {
+    try {
+      const newName = await window.api.setStoreValue("readwiseDir", folder);
+      console.log("Settings saved: ", newName);
+    } catch (error) {
+      console.error("Error saving settings: ", error);
+    }
+  }, 300);
+
+  const saveAccount = debounce(async (account: string) => {
+    try {
+      const newName = await window.api.setStoreValue("account", account);
+      console.log("Settings saved: ", newName);
+    } catch (error) {
+      console.error("Error saving settings: ", error);
+    }
+  }, 300);
+
+  const handleBaseFolderChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const folder = e.target.value;
+    setBaseFolder(folder);
+    saveBaseFolder(folder);
+  };
+
+  const handleAccountChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const account = e.target.value;
+    setAccount(account);
+    saveAccount(account);
+  };
 
   async function handleSyncHighlights() {
     onIsSyncing(true); // Start syncing
@@ -90,8 +137,7 @@ export function SettingsOptions({ onIsSyncing }: SettingsOptionsProps) {
             </Button>
           </div>
         </div>
-        {/** TODO: Will add this back later */}
-        {/* <div className="flex flex-row">
+        <div className="flex flex-row">
           <div className="basis-2/3">
             <Label
               className="flex basis-2/3 font-bold"
@@ -112,10 +158,35 @@ export function SettingsOptions({ onIsSyncing }: SettingsOptionsProps) {
               type="text"
               id="base-folder"
               value={baseFolder}
-              onChange={(e) => setBaseFolder(e.target.value)}
+              onChange={handleBaseFolderChange}
             />
           </div>
-        </div> */}
+        </div>
+        {/* Pick an account to export to in Apple Notes */}
+        <div className="flex flex-row">
+          <div className="basis-2/3">
+            <Label
+              className="flex basis-2/3 font-bold"
+              htmlFor="connect-to-readwise"
+            >
+              Pick an account to export to in Apple Notes
+            </Label>
+            <Label
+              className="flex basis-2/3 text-xs"
+              htmlFor="connect-to-readwise"
+            >
+              By default, the app will save all your highlights into the folder you specified above into your iCloud account you're currently signed into. If you want to save to a different account like Gmail, Yahoo, or Outlook, you can specify that here.
+            </Label>
+          </div>
+          <div className="flex basis-1/3 justify-end">
+            <Input
+              type="text"
+              id="base-folder"
+              value={account}
+              onChange={handleAccountChange}
+            />
+          </div>
+        </div>
       </div>
     </>
   );
