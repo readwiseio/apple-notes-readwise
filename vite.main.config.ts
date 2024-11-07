@@ -1,13 +1,21 @@
 import { defineConfig } from 'vite';
 import path from 'path';
-import react from '@vitejs/plugin-react';
 
 // https://vitejs.dev/config
 export default defineConfig({
-  plugins: [react()],
   resolve: {
     alias: {
-      '@': path.resolve(__dirname, './src'),
+      '@main': path.resolve(__dirname, 'src/main'),
+      '@shared': path.resolve(__dirname, 'src/shared'),
     },
   },
+  build: {
+    lib: {
+      entry: path.resolve(__dirname, 'src/main/index.ts'),
+    },
+    rollupOptions: {
+      external: ['electron'],
+    },
+  },
+  plugins: [],
 });

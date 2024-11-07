@@ -1,0 +1,1 @@
+export const baseURL = "https://readwise.io";

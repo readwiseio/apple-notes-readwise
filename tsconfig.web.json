@@ -1,0 +1,17 @@
+{
+    "extends": "./tsconfig.base.json",
+    "include": [
+      "src/renderer/src/vite-env.d.ts",
+      "src/renderer/src/**/*",
+      "src/renderer/src/**/*.tsx",
+      "src/preload/*.d.ts",
+      "src/shared/**/*"
+    ],
+    "compilerOptions": {
+      "composite": true,
+      "lib": ["ESNext", "DOM", "DOM.Iterable"],
+      "jsx": "react-jsx",
+      "noUnusedLocals": false
+    }
+  }
+  
