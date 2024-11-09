@@ -1,5 +1,6 @@
 import { app, BrowserWindow, ipcMain } from 'electron'
 import path from 'path'
+import { updateAppleNotesAccounts } from './lib/utils'
 import { getObsidianClientID, getUserAuthToken, ReadwiseSync } from './lib'
 import { store } from './lib/store'
 
@@ -98,6 +99,10 @@ ipcMain.handle('open-custom-format-window', (event: Electron.Event) => {
   })
 
   loginWindow.loadURL(`https://readwise.io/export/obsidian/preferences`)
+})
+
+ipcMain.handle('fetch-apple-notes-accounts', async () => {
+  return await updateAppleNotesAccounts()
 })
 
 // Quit when all windows are closed, except on macOS. There, it's common

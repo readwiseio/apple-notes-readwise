@@ -11,7 +11,7 @@ contextBridge.exposeInMainWorld('api', {
     ipcRenderer.send('electron-store-set', key, value)
   },
   getUserAccounts: () => {
-    return ipcRenderer.invoke('get-user-accounts')
+    return ipcRenderer.invoke('fetch-apple-notes-accounts')
   },
   readwise: {
     connectToReadwise() {

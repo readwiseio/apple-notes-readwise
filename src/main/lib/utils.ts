@@ -1,5 +1,6 @@
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
+import { store } from './store'
 
 // https://github.com/sindresorhus/run-applescript/blob/9db60e8a8fa7db46534c3c8a05c0f58135280ebb/index.js#L5
 const execFileAsync = promisify(execFile)
@@ -13,6 +14,29 @@ async function runAppleScript(
   const { stdout } = await execFileAsync('osascript', ['-e', script, ...outputArguments])
 
   return stdout.trim()
+}
+
+export async function updateAppleNotesAccounts() {
+  const newAccounts = await getAppleNotesAccounts()
+  const storedAccounts = store.get('accounts') || []
+  const storedDefaultAccount = store.get('defaultAccount') || ''
+
+  // Check if there are any new accounts
+  if (JSON.stringify(newAccounts) !== JSON.stringify(storedAccounts)) {
+    store.set('accounts', newAccounts)
+  }
+
+  if (!storedDefaultAccount) {
+    const defaultAccount = await fetchDefaultAccount()
+    store.set('defaultAccount', defaultAccount)
+    store.set('currentAccount', defaultAccount)
+  }
+
+  return {
+    accounts: store.get('accounts'),
+    defaultAccount: store.get('defaultAccount'),
+    currentAccount: store.get('currentAccount')
+  }
 }
 
 function sanitizeHTML(text: string | number | null | undefined) {
@@ -32,6 +56,18 @@ const executeAppleScript = async (script: string): Promise<string> => {
     console.error('Error executing AppleScript:', error)
     throw error
   }
+}
+
+async function fetchDefaultAccount() {
+  const script = `
+    tell application "Notes"
+      set defaultAccount to the default account
+      set defaultAccountName to name of defaultAccount
+      return defaultAccountName
+    end tell
+  `
+  const result = await executeAppleScript(script)
+  return result.trim()
 }
 
 export async function checkIfNoteExist(

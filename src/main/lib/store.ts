@@ -15,7 +15,9 @@ const DEFAULT_SETTINGS: ReadwisePluginSettings = {
   failedBooks: [],
   booksIDsMap: {},
   reimportShowConfirmation: true,
-  account: 'iCloud'
+  currentAccount: '',
+  defaultAccount: '',
+  accounts: []
 }
 
 export const store = new Store<ReadwisePluginSettings>({

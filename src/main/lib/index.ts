@@ -118,7 +118,19 @@ export class ReadwiseSync {
     const entries = await zipReader.getEntries()
 
     const notesFolder = this.store.get('readwiseDir')
-    const account = this.store.get('account')
+    const account = this.store.get('currentAccount')
+
+    if (!notesFolder) {
+      console.log('Readwise Official plugin: no folder selected')
+      await this.handleSyncError('Sync failed')
+      return
+    }
+
+    if (!account) {
+      console.log('Readwise Official plugin: no account selected')
+      await this.handleSyncError('Sync failed')
+      return
+    }
 
     const bookIdsMap = this.store.get('booksIDsMap')
 
@@ -338,9 +350,21 @@ export class ReadwiseSync {
     this.store.set('isSyncing', true)
 
     const readwiseDir = this.store.get('readwiseDir')
-    const account = this.store.get('account')
+    const account = this.store.get('currentAccount')
 
     console.log('Readwise app: syncing to folder and account: ', { readwiseDir, account })
+
+    if (!readwiseDir) {
+      console.log('Readwise Official plugin: no folder selected')
+      await this.handleSyncError('Sync failed')
+      return 'Sync failed'
+    }
+
+    if (!account) {
+      console.log('Readwise Official plugin: no account selected')
+      await this.handleSyncError('Sync failed')
+      return 'Sync failed'
+    }
 
     let parentDeleted = false
     // If user is syncing with iCloud account, check if the parent folder is deleted
