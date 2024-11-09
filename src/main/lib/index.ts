@@ -10,8 +10,8 @@ import {
 } from '../../shared/types'
 import {
   checkIfNoteExist,
-  checkIfFolderIsEmtpy,
   checkFolderExistsInAppleNotes,
+  checkFolderExistsAndIsEmptyInAppleNotes,
   updateExistingNote,
   createNewNote,
   createFolderInAppleNotes
@@ -290,7 +290,7 @@ export class ReadwiseSync {
           // then keep polling
           await this.getExportStatus(statusID, token, uuid)
         } else if (SUCCESS_STATUSES.includes(data.taskStatus)) {
-          this.mainWindow.webContents.send('export-complete', { })
+          this.mainWindow.webContents.send('export-complete', {})
           await this.downloadExport(statusID)
         } else {
           console.log('Readwise Official plugin: unknown status in getExportStatus: ', data)
@@ -367,35 +367,31 @@ export class ReadwiseSync {
     }
 
     let parentDeleted = false
-    // If user is syncing with iCloud account, check if the parent folder is deleted
-    if (account === 'iCloud') {
-      parentDeleted = !(await checkFolderExistsInAppleNotes(readwiseDir, account))
-      console.log('Parent folder deleted: ', parentDeleted)
-      if (parentDeleted) {
-        console.log("Readwise Official plugin: parent folder doesn't exist")
-        const folderCreated = await createFolderInAppleNotes(readwiseDir, account)
-        if (!folderCreated) {
-          console.log("Readwise Official plugin: failed to create parent folder")
-          await this.handleSyncError('Sync failed')
-          return 'Sync failed'
-        } else {
-          console.log("Readwise Official plugin: parent folder created")
-        }
-      } else {
-        console.log("Readwise Official plugin: parent folder exists, continue to sync")
-      }
-    } else {
-      // If user is syncing with non-iCloud account, check if the folder name is 'Notes'
-      // If not, return an error
-      if (account !== 'iCloud' && readwiseDir !== 'Notes') {
-        console.log("Readwise Official plugin: folder name must be 'Notes' for non-iCloud accounts")
+
+    // We need to check for three scanarios:
+    // 1.) If the folder exists and is empty, then set parentDeleted to true to initiate a full sync
+    // 2.) If the folder does not exist, then create it and set parentDeleted to true to initiate a full sync
+    // 3.) If the folder exists and is not empty, then set parentDeleted to false to only sync new highlights
+    const folderExists = await checkFolderExistsInAppleNotes(readwiseDir, account)
+    const folderIsEmpty = await checkFolderExistsAndIsEmptyInAppleNotes(readwiseDir, account)
+
+    // if the folder does not exist, create it and set parentDeleted to true to initiate a full sync
+    if (!folderExists) {
+      console.log('Readwise Official plugin: folder does not exist, creating it')
+      parentDeleted = true
+      const folderCreated = await createFolderInAppleNotes(readwiseDir, account)
+      if (!folderCreated) {
+        console.log('Readwise Official plugin: failed to create folder')
         await this.handleSyncError('Sync failed')
         return 'Sync failed'
       } else {
-        // Check if non-iCloud accounts default to 'Notes' folder is empty or not this will be the replacement for parentDeleted
-        parentDeleted = await checkIfFolderIsEmtpy(readwiseDir, account)
-        console.log(`${account} parent folder deleted: `, parentDeleted)
+        console.log('Readwise Official plugin: folder created')
       }
+    } else {
+      // if the folder exists, set parentDeleted to folderIsEmpty value (true if empty, false if not)
+      // A scenario where the folder exists but is empty is when the user has deleted all notes in the folder
+      // this should trigger a full sync just like when the folder does not exist
+      parentDeleted = folderIsEmpty
     }
 
     let url = `${baseURL}/api/obsidian/init?parentPageDeleted=${parentDeleted}`
@@ -432,7 +428,7 @@ export class ReadwiseSync {
         return 'Sync failed'
       }
 
-      const lastest_id = store.get('lastSavedStatusID')
+      const lastest_id = this.store.get('lastSavedStatusID')
       console.log(data.latest_id)
       if (data.latest_id <= lastest_id) {
         await this.handleSyncSuccess() // Data is already up to date

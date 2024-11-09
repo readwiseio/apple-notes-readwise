@@ -113,6 +113,32 @@ export async function getAppleNotesAccounts(): Promise<string[]> {
   return result.split(', ')
 }
 
+export const checkFolderExistsAndIsEmptyInAppleNotes = async (
+  folder: string,
+  account: string
+): Promise<boolean> => {
+  const script = `
+    tell application "Notes"
+      set folderName to "${folder}"
+      set accountName to "${account}"
+      
+      try
+          set targetFolder to folder folderName of account accountName
+          if (count of notes of targetFolder) is 0 then
+              return true -- Folder exists and is empty
+          else
+              return false -- Folder exists but is not empty
+          end if
+      on error
+          return false -- Folder does not exist
+      end try
+    end tell
+  `
+
+  const result = await executeAppleScript(script)
+  return result === 'true'
+}
+
 export const checkFolderExistsInAppleNotes = async (
   folder: string,
   account: string
