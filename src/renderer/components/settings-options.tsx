@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
 import { Label } from './ui/label'
+import { Select } from './ui/select'
 import { useToast } from '../hooks/use-toast'
 import { debounce } from 'lodash'
 
@@ -155,19 +156,13 @@ export function SettingsOptions({ onIsSyncing }: SettingsOptionsProps) {
               Select the Apple Notes account you want to use for exporting highlights.
             </Label>
           </div>
-          <div className="flex basis-1/3 justify-end border-2 border-gray-100 rounded-sm">
-            <select
-              id="account-select"
+          <div className="flex basis-1/3 justify-end">
+            <Select
               value={currentAccount}
               onChange={handleAccountChange}
-              className="input"
-            >
-              {accounts.map((acc) => (
-                <option key={acc} value={acc}>
-                  {acc}
-                </option>
-              ))}
-            </select>
+              options={accounts}
+              className="your-additional-classes"
+            />
           </div>
         </div>
       </div>
