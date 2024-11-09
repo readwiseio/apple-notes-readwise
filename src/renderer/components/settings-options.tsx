@@ -65,7 +65,7 @@ export function SettingsOptions({ onIsSyncing }: SettingsOptionsProps) {
         description: msg,
         duration: 5000,
       });
-      console.log("Message from main process: ", "Sync successful");
+      console.log("Sync successful: ", msg);
     } catch (error) {
       console.error("Sync error: ", error);
       toast({
@@ -74,6 +74,7 @@ export function SettingsOptions({ onIsSyncing }: SettingsOptionsProps) {
         duration: 5000,
       });
     } finally {
+      console.log("Sync complete");
       onIsSyncing(false); // End syncing
     }
   }

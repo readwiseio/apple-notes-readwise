@@ -1,6 +1,6 @@
 import { app, BrowserWindow, ipcMain } from 'electron'
 import path from 'path'
-import { getObsidianClientID, getUserAuthToken, syncHighlights } from './lib'
+import { getObsidianClientID, getUserAuthToken, ReadwiseSync } from './lib'
 import { store } from './lib/store'
 
 let mainWindow: BrowserWindow
@@ -55,7 +55,8 @@ ipcMain.on('electron-store-set', async (_, key, value) => {
 })
 
 ipcMain.handle('sync-highlights', () => {
-  return syncHighlights()
+  const readwiseSync = new ReadwiseSync(mainWindow, store)
+  return readwiseSync.syncHighlights()
 })
 
 ipcMain.handle('connect-to-readwise', async (event: Electron.Event) => {

@@ -34,7 +34,7 @@ export default function App() {
     return () => {
       window.api.removeAllListeners('login-status')
     }
-  }, [])
+  }, [isSyncing])
 
   return (
     <div className="grid grid-rows-1 min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
@@ -44,7 +44,7 @@ export default function App() {
           <hr className="border-[1px] border-black"></hr>
           {isLoggedIn ? (
             isSyncing ? (
-              <SyncingProgress />
+              <SyncingProgress onIsSyncing={setIsSyncing} />
             ) : (
               <SettingsOptions onIsSyncing={setIsSyncing} />
             )
