@@ -13,7 +13,8 @@ import {
   checkIfFolderIsEmtpy,
   checkFolderExistsInAppleNotes,
   updateExistingNote,
-  createNewNote
+  createNewNote,
+  createFolderInAppleNotes
 } from './utils'
 import { baseURL } from '../../shared/constants'
 import { BrowserWindow } from 'electron'
@@ -346,6 +347,19 @@ export class ReadwiseSync {
     if (account === 'iCloud') {
       parentDeleted = !(await checkFolderExistsInAppleNotes(readwiseDir, account))
       console.log('Parent folder deleted: ', parentDeleted)
+      if (parentDeleted) {
+        console.log("Readwise Official plugin: parent folder doesn't exist")
+        const folderCreated = await createFolderInAppleNotes(readwiseDir, account)
+        if (!folderCreated) {
+          console.log("Readwise Official plugin: failed to create parent folder")
+          await this.handleSyncError('Sync failed')
+          return 'Sync failed'
+        } else {
+          console.log("Readwise Official plugin: parent folder created")
+        }
+      } else {
+        console.log("Readwise Official plugin: parent folder exists, continue to sync")
+      }
     } else {
       // If user is syncing with non-iCloud account, check if the folder name is 'Notes'
       // If not, return an error
