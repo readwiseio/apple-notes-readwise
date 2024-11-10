@@ -33,6 +33,8 @@ const config: ForgeConfig = {
         },
         draft: true,
         prerelease: true,
+        generateReleaseNotes: true,
+        authToken: process.env.GITHUB_TOKEN || '',
       },
     },
   ],
