@@ -1,7 +1,7 @@
 import * as zip from '@zip.js/zip.js'
 import MarkdownIt from 'markdown-it'
 
-import { store } from './store'
+import { store } from '@/lib/store'
 
 import {
   ExportRequestResponse,

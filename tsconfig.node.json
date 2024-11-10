@@ -3,10 +3,16 @@
   "include": [
     "src/main/**/*",
     "src/preload/*",
-    "src/shared/**/*"
+    "src/shared/**/*",
+    "forge.config.*"
   ],
   "compilerOptions": {
     "composite": true,
-    "types": ["node", "electron"]
+    "types": ["node", "electron"],
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/main/*"],
+      "@shared/*": ["src/shared/*"]
+    }
   }
 }

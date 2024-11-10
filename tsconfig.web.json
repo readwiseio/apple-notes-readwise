@@ -11,7 +11,15 @@
       "composite": true,
       "lib": ["ESNext", "DOM", "DOM.Iterable"],
       "jsx": "react-jsx",
-      "noUnusedLocals": false
+      "noUnusedLocals": false,
+      "baseUrl": ".",
+      "paths": {
+        "@/*": ["src/renderer/*"],
+        "@renderer/*": ["src/renderer/*"],
+        "@main/*": ["src/main/*"],
+        "@preload/*": ["src/preload/*"],
+        "@shared/*": ["src/shared/*"]
+      }
     }
   }
   

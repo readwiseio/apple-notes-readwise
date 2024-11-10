@@ -1,5 +1,5 @@
 import Store from 'electron-store'
-import { ReadwisePluginSettings } from '../../shared/types'
+import { ReadwisePluginSettings } from '@shared/types'
 
 const DEFAULT_SETTINGS: ReadwisePluginSettings = {
   token: '',

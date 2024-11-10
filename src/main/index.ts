@@ -1,8 +1,8 @@
 import { app, BrowserWindow, ipcMain } from 'electron'
 import path from 'path'
-import { updateAppleNotesAccounts } from './lib/utils'
-import { getObsidianClientID, getUserAuthToken, ReadwiseSync } from './lib'
-import { store } from './lib/store'
+import { updateAppleNotesAccounts } from '@/lib/utils'
+import { getObsidianClientID, getUserAuthToken, ReadwiseSync } from '@/lib'
+import { store } from '@/lib/store'
 
 let mainWindow: BrowserWindow
 

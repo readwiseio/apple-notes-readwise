@@ -16,14 +16,5 @@
     "noUnusedParameters": true,
     "noImplicitAny": false,
     "noImplicitReturns": true,
-    "baseUrl": ".",
-    "paths": {
-      "@/*": ["src/*"],
-      "@renderer/*": ["src/renderer/*"],
-      "@main/*": ["src/main/*"],
-      "@preload/*": ["src/preload/*"],
-      "@shared/*": ["src/shared/*"]
-    }
   },
-  "include": ["src/**/*", "preload/**/*"]
 }

@@ -54,6 +54,12 @@ export interface ReadwisePluginSettings {
   /** User choice for confirming delete and reimport */
   reimportShowConfirmation: boolean;
 
-  /** The account within Apple Notes to export to... */
-  account: string;
+  /** The current account within Apple Notes to export to... */
+  currentAccount: string;
+
+  /** The default account to export to */
+  defaultAccount: string;
+
+  /** List of accounts available to export to */
+  accounts: Array<string>;
 }

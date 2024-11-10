@@ -1,19 +1,22 @@
 import { execFile } from 'node:child_process'
-import { promisify } from 'node:util'
-import { store } from './store'
+import { store } from '@/lib/store'
 
 // https://github.com/sindresorhus/run-applescript/blob/9db60e8a8fa7db46534c3c8a05c0f58135280ebb/index.js#L5
-const execFileAsync = promisify(execFile)
-
 async function runAppleScript(
   script: string,
   { humanReadableOutput = true } = {}
 ): Promise<string> {
-  const outputArguments = humanReadableOutput ? [] : ['-ss']
+  const outputArguments = humanReadableOutput ? [] : ['-ss'];
 
-  const { stdout } = await execFileAsync('osascript', ['-e', script, ...outputArguments])
-
-  return stdout.trim()
+  return new Promise((resolve, reject) => {
+    execFile('osascript', ['-e', script, ...outputArguments], (error, stdout, stderr) => {
+      if (error) {
+        reject(new Error(`Error: ${stderr || error.message}`));
+      } else {
+        resolve(stdout.trim());
+      }
+    });
+  });
 }
 
 export async function updateAppleNotesAccounts() {
