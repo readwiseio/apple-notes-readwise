@@ -1,8 +1,13 @@
 import React from 'react'
 import { cn } from '../../lib/utils' // assuming `cn` is your utility for conditional class names
 
+interface Option {
+  value: string
+  label: string
+}
+
 interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
-  options: string[]
+  options: Option[]
 }
 
 const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
@@ -17,8 +22,8 @@ const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
         {...props}
       >
         {options.map((option) => (
-          <option key={option} value={option} className="text-slate-900 dark:text-slate-50">
-            {option}
+          <option key={option.value} value={option.value} className="text-slate-900 dark:text-slate-50">
+            {option.label}
           </option>
         ))}
       </select>

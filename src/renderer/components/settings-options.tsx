@@ -6,6 +6,13 @@ import { Select } from './ui/select'
 import { useToast } from '../hooks/use-toast'
 import { debounce } from 'lodash'
 
+const frequencyOptions = [
+  { value: '0', label: 'Manual' },
+  { value: '60', label: 'Every 1 hour' },
+  { value: '720', label: 'Every 12 hours' },
+  { value: '1440', label: 'Every 24 hours' },
+  { value: '10080', label: 'Every week' }
+]
 interface SettingsOptionsProps {
   onIsSyncing: (isSyncing: boolean) => void
 }
@@ -13,19 +20,26 @@ interface SettingsOptionsProps {
 export function SettingsOptions({ onIsSyncing }: SettingsOptionsProps) {
   const { toast } = useToast()
   const [baseFolder, setBaseFolder] = useState('')
-  const [accounts, setAccounts] = useState<string[]>([])
+  const [accounts, setAccounts] = useState<{ value: string; label: string }[]>([])
   const [currentAccount, setCurrentAccount] = useState('')
+  const [syncFrequency, setSyncFrequency] = useState('')
 
   useEffect(() => {
     const loadSettings = async () => {
       const folder = await window.api.getStoreValue('readwiseDir')
       const { accounts, defaultAccount, currentAccount } = await window.api.getUserAccounts()
+      const frequency = await window.api.getStoreValue('frequency')
 
       console.log('Settings loaded: ', folder, accounts, defaultAccount, currentAccount)
 
       setBaseFolder(folder || 'Readwise')
-      setAccounts(accounts || ['No accounts found'])
+      setAccounts(
+        accounts.map((acc: string) => ({ value: acc, label: acc })) || [
+          { value: '', label: 'No accounts found' }
+        ]
+      )
       setCurrentAccount(currentAccount || defaultAccount)
+      setSyncFrequency(frequency.toString() || '0')
     }
 
     loadSettings()
@@ -49,6 +63,15 @@ export function SettingsOptions({ onIsSyncing }: SettingsOptionsProps) {
     }
   }, 300)
 
+  const saveFrequency = debounce(async (freq: string) => {
+    try {
+      const frequency = await window.api.setStoreValue('frequency', freq)
+      console.log('Settings saved: ', frequency)
+    } catch (error) {
+      console.error('Error saving settings: ', error)
+    }
+  })
+
   const handleBaseFolderChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const folder = e.target.value
     setBaseFolder(folder)
@@ -59,6 +82,12 @@ export function SettingsOptions({ onIsSyncing }: SettingsOptionsProps) {
     const selectedAccount = e.target.value
     setCurrentAccount(selectedAccount)
     saveAccount(selectedAccount)
+  }
+
+  const handleFrequencyChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const selectedFrequency = e.target.value
+    setSyncFrequency(selectedFrequency)
+    saveFrequency(selectedFrequency)
   }
 
   async function handleSyncHighlights() {
@@ -158,10 +187,30 @@ export function SettingsOptions({ onIsSyncing }: SettingsOptionsProps) {
           </div>
           <div className="flex basis-1/3 justify-end">
             <Select
+              id="account-select"
               value={currentAccount}
               onChange={handleAccountChange}
               options={accounts}
-              className="your-additional-classes"
+            />
+          </div>
+        </div>
+        {/*Automatic sync */}
+        <div className="flex flex-row">
+          <div className="basis-2/3">
+            <Label className="flex basis-2/3 font-bold" htmlFor="connect-to-readwise">
+              Configure resync frequency
+            </Label>
+            <Label className="flex basis-2/3 text-xs" htmlFor="connect-to-readwise">
+              If not set to Manual, Readwise will automatically resync with Obsidian when the app is
+              open at the specified interval
+            </Label>
+          </div>
+          <div className="flex basis-1/3 justify-end">
+            <Select
+              id="frequency-select"
+              value={syncFrequency}
+              onChange={handleFrequencyChange}
+              options={frequencyOptions}
             />
           </div>
         </div>
