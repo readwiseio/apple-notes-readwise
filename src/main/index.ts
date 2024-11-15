@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain } from 'electron'
+import { app, BrowserWindow, ipcMain, shell } from 'electron'
 import path from 'path'
 import { updateAppleNotesAccounts } from '@/lib/utils'
 import { getObsidianClientID, getUserAuthToken, ReadwiseSync } from '@/lib'
@@ -10,10 +10,10 @@ const createWindow = () => {
   // Create the browser window.
   mainWindow = new BrowserWindow({
     width: 800,
-    height: 600,
-    maxHeight: 600,
+    height: 650,
     maxWidth: 800,
-    minHeight: 600,
+    maxHeight: 650,
+    minHeight: 650,
     minWidth: 800,
     webPreferences: {
       preload: path.join(__dirname, '../preload/index.js'),
@@ -29,12 +29,18 @@ const createWindow = () => {
     mainWindow.loadFile(path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`))
   }
 
-  // check if the token is "" or not
+  // check if the user is authenticated
   const tokenExsits = Boolean(store.get('token'))
   console.log('User is authenticated: ', tokenExsits)
   mainWindow.webContents.once('did-finish-load', () => {
     mainWindow.webContents.send('login-status', tokenExsits)
   })
+
+  // Open external links in the default browser
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    shell.openExternal(url)
+    return { action: 'deny' }
+  });
 }
 
 // This method will be called when Electron has finished
@@ -64,46 +70,40 @@ ipcMain.handle('connect-to-readwise', async (event: Electron.Event) => {
   event.preventDefault()
   const uuid = getObsidianClientID()
 
-  const loginWindow = new BrowserWindow({
-    width: 800,
-    height: 600,
-    webPreferences: {
-      nodeIntegration: false,
-      contextIsolation: true
-    }
-  })
-
-  loginWindow.loadURL(`https://readwise.io/api_auth?token=${uuid}&service=obsidian`)
+  shell.openExternal(`https://readwise.io/api_auth?token=${uuid}&service=obsidian`)
 
   const token = await getUserAuthToken(uuid)
   if (token) {
     await store.set('token', token)
     mainWindow.webContents.send('login-status', true)
+    console.log('Connected to Readwise')
     return 'Connected to Readwise'
   } else {
     console.error('Failed to connect to Readwise')
     mainWindow.webContents.send('login-status', false)
+    console.log('Failed to connect to Readwise')
     return 'Failed to connect to Readwise'
   }
 })
 
 ipcMain.handle('open-custom-format-window', (event: Electron.Event) => {
   event.preventDefault()
-  const loginWindow = new BrowserWindow({
-    width: 800,
-    height: 600,
-    webPreferences: {
-      nodeIntegration: false,
-      contextIsolation: true
-    }
-  })
-
-  loginWindow.loadURL(`https://readwise.io/export/obsidian/preferences`)
+  shell.openExternal(`https://readwise.io/export/obsidian/preferences`)
 })
 
 ipcMain.handle('fetch-apple-notes-accounts', async () => {
   return await updateAppleNotesAccounts()
 })
+
+async function configureScheduledSync() {
+  const minutes = parseInt(store.get('frequency'))
+  let milliseconds = minutes * 60 * 1000 // convert minutes to milliseconds
+  console.log("Settings interval to ", milliseconds)
+  setInterval(async () => {
+    const readwiseSync = new ReadwiseSync(mainWindow, store)
+    await readwiseSync.syncHighlights(undefined, true)
+  }, milliseconds)
+}
 
 // Quit when all windows are closed, except on macOS. There, it's common
 // for applications and their menu bar to stay active until the user quits

@@ -53,6 +53,23 @@ export default function App() {
           )}
           <Toaster />
         </div>
+        <footer className="p-2 text-center text-sm text-black">
+          <p>
+            Questions? Please see our{' '}
+            <a
+              className="text-blue-500"
+              href="https://github.com/Scarvy/apple-notes-readwise/wiki/User-Guide"
+              target="_blank"
+            >
+              docs
+            </a>{' '}
+            or email us at{' '}
+            <a className="text-blue-500" href="mailto:hello@readwise.io" target="_blank">
+              hello@readwise.io
+            </a>{' '}
+            🙂
+          </p>
+        </footer>
       </main>
     </div>
   )
