@@ -82,12 +82,22 @@ export function SettingsOptions({ onIsSyncing }: SettingsOptionsProps) {
     const selectedAccount = e.target.value
     setCurrentAccount(selectedAccount)
     saveAccount(selectedAccount)
+    toast({
+      variant: 'default',
+      description: 'Your highlights will now sync to your "' + selectedAccount + '" account',
+      duration: 5000
+    })
   }
 
   const handleFrequencyChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const selectedFrequency = e.target.value
     setSyncFrequency(selectedFrequency)
     saveFrequency(selectedFrequency)
+    toast({
+      variant: 'default',
+      description: 'Sync frequency updated to "' + frequencyOptions.find((f) => f.value === selectedFrequency)?.label + '"',
+      duration: 5000
+    })
   }
 
   async function handleSyncHighlights() {
@@ -120,10 +130,10 @@ export function SettingsOptions({ onIsSyncing }: SettingsOptionsProps) {
   return (
     <>
       <div className="mb-2">
-        <span className=" text-sm">
+        <p className=" text-xs">
           If you take new highlights on documents you&apos;ve already exported at least once, those
           new highlights will be appended to the end of the existing files.
-        </span>
+        </p>
       </div>
       <div className="space-y-4">
         <div className="flex flex-row">
@@ -201,7 +211,7 @@ export function SettingsOptions({ onIsSyncing }: SettingsOptionsProps) {
               Configure resync frequency
             </Label>
             <Label className="flex basis-2/3 text-xs" htmlFor="connect-to-readwise">
-              If not set to Manual, Readwise will automatically resync with Obsidian when the app is
+              If not set to Manual, Readwise will automatically resync with Apple Notes when the app is
               open at the specified interval
             </Label>
           </div>
