@@ -257,7 +257,7 @@ export class ReadwiseSync {
     }
   }
 
-  async getExportStatus(statusID: number, token: string, uuid: string) {
+  async getExportStatus(statusID: number, token: string, uuid: string): Promise<void> {
     try {
       const response = await fetch(
         // status of archive build from this endpoint
@@ -340,7 +340,7 @@ export class ReadwiseSync {
     console.log('Readwise Official plugin: ', msg)
   }
 
-  async queueExport(statusId?: number): Promise<string> {
+  async queueExport(statusId?: number,  auto?: boolean): Promise<string> {
     if (this.store.get('isSyncing')) {
       console.log('Readwise sync already in progress')
       return 'Sync already in progress'
@@ -397,6 +397,9 @@ export class ReadwiseSync {
     let url = `${baseURL}/api/obsidian/init?parentPageDeleted=${parentDeleted}`
     if (statusId) {
       url += `&statusId=${statusId}`
+    }
+    if (auto) {
+      url += `&auto=${auto}`
     }
     console.log('Readwise Official plugin: queueExport url: ', url)
 
@@ -461,7 +464,7 @@ export class ReadwiseSync {
   }
 
   // https://github.com/readwiseio/obsidian-readwise/blob/56d903b8d1bc18a7816603c300c6b0afa1241d0e/src/main.ts#L436
-  async syncHighlights(bookIds?: Array<string>) {
+  async syncHighlights(bookIds?: Array<string>, auto? = false): Promise<string> {
     if (!this.store.get('token')) return 'Not connected to Readwise'
 
     const failedBooks = this.store.get('failedBooks')
