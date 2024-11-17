@@ -37,7 +37,7 @@ const createWindow = () => {
     if (tokenExsits) {
 
       // Configure scheduled sync
-      const syncFrequency = store.get('syncFrequency') || '0' // default to manual
+      const syncFrequency = store.get('frequency') || '0' // default to manual
       configureScheduledSync(syncFrequency)
 
       // if token exists check if the user has set to sync on startup
