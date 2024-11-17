@@ -20,6 +20,9 @@ contextBridge.exposeInMainWorld('api', {
     syncHighlights() {
       return ipcRenderer.invoke('sync-highlights')
     },
+    updateSyncFrequency(frequency: string) {
+      return ipcRenderer.invoke('update-sync-frequency', frequency)
+    },
     openCustomFormatWindow() {
       ipcRenderer.invoke('open-custom-format-window')
     }

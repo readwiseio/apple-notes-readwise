@@ -3,11 +3,8 @@ import { Toaster } from './components/ui/toaster'
 import { LoginCard } from './components/login'
 import { SettingsOptions } from './components/settings-options'
 import { SyncingProgress } from './components/syncing-progress'
-import { useToast } from './hooks/use-toast'
 
 export default function App() {
-  const { toast } = useToast()
-
   const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [isSyncing, setIsSyncing] = useState(false)
 
@@ -19,15 +16,13 @@ export default function App() {
   useEffect(() => {
     checkLoginStatus()
 
-    window.api.on('login-status', (event, loggedIn) => {
+    window.api.on('login-status', (_event, loggedIn: boolean) => {
       setIsLoggedIn(loggedIn)
 
       if (loggedIn) {
-        toast({
-          variant: 'success',
-          description: 'Successfully connected to Readwise',
-          duration: 5000
-        })
+        console.log('Logged in')
+      } else {
+        console.log('Logged out')
       }
     })
 

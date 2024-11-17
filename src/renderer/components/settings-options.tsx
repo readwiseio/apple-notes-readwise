@@ -89,10 +89,12 @@ export function SettingsOptions({ onIsSyncing }: SettingsOptionsProps) {
     })
   }
 
-  const handleFrequencyChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+  const handleFrequencyChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
     const selectedFrequency = e.target.value
     setSyncFrequency(selectedFrequency)
     saveFrequency(selectedFrequency)
+    const msg = await window.api.readwise.updateSyncFrequency(selectedFrequency)
+    console.log('Sync frequency updated to: ', msg)
     toast({
       variant: 'default',
       description: 'Sync frequency updated to "' + frequencyOptions.find((f) => f.value === selectedFrequency)?.label + '"',
@@ -103,7 +105,7 @@ export function SettingsOptions({ onIsSyncing }: SettingsOptionsProps) {
   async function handleSyncHighlights() {
     onIsSyncing(true) // Start syncing
     try {
-      const msg = await window.api.readwise.syncHighlights()
+      const msg = await window.api.readwise.syncHighlights(undefined, false)
       toast({
         variant: 'success',
         description: msg,
@@ -126,6 +128,24 @@ export function SettingsOptions({ onIsSyncing }: SettingsOptionsProps) {
   async function handleOpenCustomFormatWindow() {
     window.api.readwise.openCustomFormatWindow()
   }
+
+  useEffect(() => {
+    async function handleSyncProgressMessages(_event, data) {
+      console.log('Sync progress', data.message)
+      // if toast already on screen, clear it and show the new one
+      toast({
+        variant: data.variant,
+        description: data.message,
+        duration: 5000
+      })
+    }
+
+    window.api.on('toast:show', handleSyncProgressMessages)
+
+    return () => {
+      window.api.removeAllListeners('toast:show')
+    }
+  }, [])
 
   return (
     <>

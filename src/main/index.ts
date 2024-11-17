@@ -34,6 +34,29 @@ const createWindow = () => {
   console.log('User is authenticated: ', tokenExsits)
   mainWindow.webContents.once('did-finish-load', () => {
     mainWindow.webContents.send('login-status', tokenExsits)
+    if (tokenExsits) {
+
+      // Configure scheduled sync
+      const syncFrequency = store.get('syncFrequency') || '0' // default to manual
+      configureScheduledSync(syncFrequency)
+
+      // if token exists check if the user has set to sync on startup
+      const triggerOnLoad = Boolean(store.get('triggerOnLoad'))
+      console.log('Trigger on load: ', triggerOnLoad)
+      if (triggerOnLoad) {
+        // if sync is already in progress, don't start another one
+        if (Boolean(store.get('isSyncing'))) {
+          mainWindow.webContents.send('toast:show', { variant: 'default', message: 'Sync already in progress...'})
+          console.log('Sync already in progress')
+          return
+        }
+
+        mainWindow.webContents.send('toast:show', { variant: 'default', message: 'Initiating sync...'})
+        const readwiseSync = new ReadwiseSync(mainWindow, store)
+        readwiseSync.syncHighlights(undefined, true)
+        console.log('Syncing highlights on load')
+      }
+    }
   })
 
   // Open external links in the default browser
@@ -61,9 +84,19 @@ ipcMain.on('electron-store-set', async (_, key, value) => {
   store.set(key, value)
 })
 
-ipcMain.handle('sync-highlights', () => {
+ipcMain.handle('sync-highlights', (_event, auto?: boolean) => {
+
+  // if sync is already in progress, don't start another one
+  if (Boolean(store.get('isSyncing'))) {
+    mainWindow.webContents.send('toast:show', { variant: 'default', message: 'Sync already in progress...'})
+    console.log('Sync already in progress')
+    return
+  }
+
+  mainWindow.webContents.send('toast:show', { variant: 'default', message: 'Initiating sync...'})
+
   const readwiseSync = new ReadwiseSync(mainWindow, store)
-  return readwiseSync.syncHighlights()
+  return readwiseSync.syncHighlights(undefined, auto)
 })
 
 ipcMain.handle('connect-to-readwise', async (event: Electron.Event) => {
@@ -95,14 +128,24 @@ ipcMain.handle('fetch-apple-notes-accounts', async () => {
   return await updateAppleNotesAccounts()
 })
 
-async function configureScheduledSync() {
-  const minutes = parseInt(store.get('frequency'))
+ipcMain.handle('update-sync-frequency', async (_event, frequency: string) => {
+  return await configureScheduledSync(frequency)
+})
+
+async function configureScheduledSync(frequency: string) {
+  const minutes = parseInt(frequency)
   let milliseconds = minutes * 60 * 1000 // convert minutes to milliseconds
   console.log("Settings interval to ", milliseconds)
+  if (!milliseconds) {
+    // user set frequency to "Manual"
+    return '0'
+  }
   setInterval(async () => {
+    console.log('Syncing highlights...', new Date())
     const readwiseSync = new ReadwiseSync(mainWindow, store)
     await readwiseSync.syncHighlights(undefined, true)
   }, milliseconds)
+  return frequency
 }
 
 // Quit when all windows are closed, except on macOS. There, it's common

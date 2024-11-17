@@ -9,6 +9,8 @@ declare global {
       readwise: {
         syncHighlights: () => Promise<string>;
         openCustomFormatWindow: () => void;
+        connectToReadwise: () => Promise<string>;
+        updateSyncFrequency: (frequency: string) => Promise<string>;
       };
     };
   }
