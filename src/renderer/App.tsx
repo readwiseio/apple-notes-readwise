@@ -48,7 +48,7 @@ export default function App() {
           )}
           <Toaster />
         </div>
-        <footer className="p-2 text-center text-sm text-black">
+        <footer className="p-8 text-center text-sm text-black">
           <p>
             Questions? Please see our{' '}
             <a
