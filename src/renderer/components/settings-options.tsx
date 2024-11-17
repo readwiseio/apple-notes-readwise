@@ -5,6 +5,7 @@ import { Label } from './ui/label'
 import { Select } from './ui/select'
 import { useToast } from '../hooks/use-toast'
 import { debounce } from 'lodash'
+import { Switch } from './ui/switch'
 
 const frequencyOptions = [
   { value: '0', label: 'Manual' },
@@ -23,14 +24,16 @@ export function SettingsOptions({ onIsSyncing }: SettingsOptionsProps) {
   const [accounts, setAccounts] = useState<{ value: string; label: string }[]>([])
   const [currentAccount, setCurrentAccount] = useState('')
   const [syncFrequency, setSyncFrequency] = useState('')
+  const [triggerOnLoad, setTriggerOnLoad] = useState(false)
 
   useEffect(() => {
     const loadSettings = async () => {
       const folder = await window.api.getStoreValue('readwiseDir')
       const { accounts, defaultAccount, currentAccount } = await window.api.getUserAccounts()
       const frequency = await window.api.getStoreValue('frequency')
+      const onLoad = await window.api.getStoreValue('triggerOnLoad')
 
-      console.log('Settings loaded: ', folder, accounts, defaultAccount, currentAccount)
+      console.log('Settings loaded: ', folder, accounts, defaultAccount, currentAccount, frequency, onLoad)
 
       setBaseFolder(folder || 'Readwise')
       setAccounts(
@@ -40,6 +43,7 @@ export function SettingsOptions({ onIsSyncing }: SettingsOptionsProps) {
       )
       setCurrentAccount(currentAccount || defaultAccount)
       setSyncFrequency(frequency.toString() || '0')
+      setTriggerOnLoad(onLoad)
     }
 
     loadSettings()
@@ -72,16 +76,28 @@ export function SettingsOptions({ onIsSyncing }: SettingsOptionsProps) {
     }
   })
 
+  const updateTriggerOnLoad = debounce(async (checked: boolean) => {
+    try {
+      const triggerOnLoad = await window.api.setStoreValue('triggerOnLoad', checked)
+      console.log('Settings saved: ', triggerOnLoad)
+    } catch (error) {
+      console.error('Error saving settings: ', error)
+    }
+  })
+
   const handleBaseFolderChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const folder = e.target.value
     setBaseFolder(folder)
     saveBaseFolder(folder)
+    console.log('Base folder updated to: ', folder)
   }
 
   const handleAccountChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
     const selectedAccount = e.target.value
     setCurrentAccount(selectedAccount)
     saveAccount(selectedAccount)
+
+    console.log('Account updated to: ', selectedAccount)
     toast({
       variant: 'default',
       description: 'Your highlights will now sync to your "' + selectedAccount + '" account',
@@ -93,11 +109,25 @@ export function SettingsOptions({ onIsSyncing }: SettingsOptionsProps) {
     const selectedFrequency = e.target.value
     setSyncFrequency(selectedFrequency)
     saveFrequency(selectedFrequency)
+    
     const msg = await window.api.readwise.updateSyncFrequency(selectedFrequency)
+
     console.log('Sync frequency updated to: ', msg)
     toast({
       variant: 'default',
       description: 'Sync frequency updated to "' + frequencyOptions.find((f) => f.value === selectedFrequency)?.label + '"',
+      duration: 5000
+    })
+  }
+
+  const handleTriggerOnLoadChange = async (checked: boolean) => {
+    setTriggerOnLoad(checked)
+    updateTriggerOnLoad(checked)
+    
+    console.log('Sync on open updated to: ', checked)
+    toast({
+      variant: 'default',
+      description: 'Sync on open updated to "' + checked + '"',
       duration: 5000
     })
   }
@@ -173,10 +203,10 @@ export function SettingsOptions({ onIsSyncing }: SettingsOptionsProps) {
         </div>
         <div className="flex flex-row">
           <div className="basis-2/3">
-            <Label className="flex basis-2/3 font-bold" htmlFor="connect-to-readwise">
+            <Label className="flex basis-2/3 font-bold" htmlFor="sync-highlights">
               Customize formatting options
             </Label>
-            <Label className="flex basis-2/3 text-xs" htmlFor="connect-to-readwise">
+            <Label className="flex basis-2/3 text-xs" htmlFor="sync-highlights">
               You can customize which items export to Apple Notes and how they appear from the
               Readwise website
             </Label>
@@ -189,10 +219,10 @@ export function SettingsOptions({ onIsSyncing }: SettingsOptionsProps) {
         </div>
         <div className="flex flex-row">
           <div className="basis-2/3">
-            <Label className="flex basis-2/3 font-bold" htmlFor="connect-to-readwise">
+            <Label className="flex basis-2/3 font-bold" htmlFor="sync-highlights">
               Customize base folder
             </Label>
-            <Label className="flex basis-2/3 text-xs" htmlFor="connect-to-readwise">
+            <Label className="flex basis-2/3 text-xs" htmlFor="sync-highlights">
               By default, the app will save all your highlights into a folder named Readwise
             </Label>
           </div>
@@ -208,10 +238,10 @@ export function SettingsOptions({ onIsSyncing }: SettingsOptionsProps) {
         {/* Pick an account to export to in Apple Notes */}
         <div className="flex flex-row">
           <div className="basis-2/3">
-            <Label className="flex basis-2/3 font-bold" htmlFor="connect-to-readwise">
+            <Label className="flex basis-2/3 font-bold" htmlFor="sync-highlights">
               Pick an account to export to in Apple Notes
             </Label>
-            <Label className="flex basis-2/3 text-xs" htmlFor="connect-to-readwise">
+            <Label className="flex basis-2/3 text-xs" htmlFor="sync-highlights">
               Select the Apple Notes account you want to use for exporting highlights.
             </Label>
           </div>
@@ -227,10 +257,10 @@ export function SettingsOptions({ onIsSyncing }: SettingsOptionsProps) {
         {/*Automatic sync */}
         <div className="flex flex-row">
           <div className="basis-2/3">
-            <Label className="flex basis-2/3 font-bold" htmlFor="connect-to-readwise">
+            <Label className="flex basis-2/3 font-bold" htmlFor="sync-highlights">
               Configure resync frequency
             </Label>
-            <Label className="flex basis-2/3 text-xs" htmlFor="connect-to-readwise">
+            <Label className="flex basis-2/3 text-xs" htmlFor="sync-highlights">
               If not set to Manual, Readwise will automatically resync with Apple Notes when the app is
               open at the specified interval
             </Label>
@@ -241,6 +271,23 @@ export function SettingsOptions({ onIsSyncing }: SettingsOptionsProps) {
               value={syncFrequency}
               onChange={handleFrequencyChange}
               options={frequencyOptions}
+            />
+          </div>
+        </div>
+        {/* Sync on open */}
+        <div className="flex flex-row">
+          <div className="basis-2/3">
+            <Label className="flex basis-2/3 font-bold" htmlFor="sync-highlights">
+              Sync automatically on app open
+            </Label>
+            <Label className="flex basis-2/3 text-xs" htmlFor="sync-highlights">
+              If enabled, Readwise will automatically sync with Apple Notes when the app is opened
+            </Label>
+          </div>
+          <div className="flex basis-1/3 justify-end">
+            <Switch 
+              checked={triggerOnLoad}
+              onCheckedChange={(checked) => handleTriggerOnLoadChange(checked)}
             />
           </div>
         </div>
