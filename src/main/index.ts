@@ -34,48 +34,71 @@ const createWindow = () => {
 
   const isDev = !app.isPackaged
 
-  const customMenu = {
-    label: 'Help',
-    submenu: [
-      {
-        label: 'Documentation',
-        click: async () => {
-          shell.openExternal('https://github.com/Scarvy/apple-notes-readwise/wiki/User-Guide')
-        }
+  const customMenuItems = [
+    {
+      label: 'User Guide',
+      click: async () => {
+        shell.openExternal('https://github.com/Scarvy/apple-notes-readwise/wiki/User-Guide');
       },
-      {
-        label: 'Report an Issue',
-        click: async () => {
-          shell.openExternal('https://github.com/Scarvy/apple-notes-readwise/issues')
-        }
+    },
+    {
+      label: 'Report an Issue',
+      click: async () => {
+        shell.openExternal('https://github.com/Scarvy/apple-notes-readwise/issues');
       },
-      {
-        label: 'Check latest release',
-        click: async () => {
-          shell.openExternal('https://github.com/Scarvy/apple-notes-readwise/releases')
-        }
+    },
+    {
+      label: 'Check latest release',
+      click: async () => {
+        shell.openExternal('https://github.com/Scarvy/apple-notes-readwise/releases');
       },
-      {
-        label: 'Permission Issues?',
-        click: async () => {
-          shell.openExternal('https://scottsplace.notion.site/Apple-Notes-Readwise-Export-Fixing-permission-issues-14474debfabc805e8701f8534d1854a8?pvs=4')
-        }
+    },
+    {
+      label: 'Permission Issues?',
+      click: async () => {
+        shell.openExternal(
+          'https://scottsplace.notion.site/Apple-Notes-Readwise-Export-Fixing-permission-issues-14474debfabc805e8701f8534d1854a8?pvs=4'
+        );
       },
-      {
-        label: 'Contact Developer',
-        click: async () => {
-          shell.openExternal('mailto:scottcarvalho71@gmail.com')
-        }
+    },
+    {
+      label: 'Contact Developer',
+      click: async () => {
+        shell.openExternal('mailto:scottcarvalho71@gmail.com');
+      },
+    },
+  ];
+  
+  const defaultMenu = Menu.getApplicationMenu();
+  
+  if (defaultMenu) {
+    // Clone existing menu items
+    const menuTemplate = defaultMenu.items.map((item) => {
+      if (item.label === 'Help') {
+        // Update the 'Help' menu
+        const updatedHelpMenu = {
+          ...item,
+          submenu: Menu.buildFromTemplate([
+            ...(item.submenu ? item.submenu.items : []), // Preserve existing Help submenu items
+            ...customMenuItems, // Add custom Help submenu items
+          ]),
+        };
+        return updatedHelpMenu;
       }
-    ]
+      return item; // Return other menu items unchanged
+    });
+  
+    // Set the updated menu
+    const menu = Menu.buildFromTemplate(menuTemplate);
+    Menu.setApplicationMenu(menu);
+  } else {
+    // Fallback: Create a new menu with only the custom Help menu
+    const menu = Menu.buildFromTemplate([
+      ...customMenuItems,
+    ]);
+    Menu.setApplicationMenu(menu);
   }
-
-  const defaultMenu = Menu.getApplicationMenu()
-
-  const menuTemplate = [...(defaultMenu ? defaultMenu.items : []), customMenu]
-
-  const menu = Menu.buildFromTemplate(menuTemplate)
-  Menu.setApplicationMenu(menu)
+  
 
   // check if the user is authenticated
   const tokenExsits = Boolean(store.get('token'))
