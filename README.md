@@ -11,14 +11,15 @@
 
 This app enables you to easily export all your digital highlights to Apple Notes from a variety of sources such as Amazon Kindle, Apple Books, Google Play Books, Instapaper, Pocket, Medium, Twitter, PDFs, and more.
 
-> [!NOTE] This app requires a subscription with [Readwise](https://readwise.io/) - a paid service that makes it easy to aggregate and review all your reading data into one place.
+> [!NOTE]
+> This app requires a subscription with [Readwise](https://readwise.io/) - a paid service that makes it easy to aggregate and review all your reading data into one place.
 
 ## Features
 
 - **Customize Formatting** 💅: - use Readwise's formatting tool to change how the note appears in Apple Notes.
 - **Multi-Account Support** 👥: Select from multiple Apple Notes accounts (e.g. iCloud, Gmail).
 - **Folder Management** 📁: Automatically create and verify folders in Apple Notes.
-- **Automatic Syncing** 🔄: Configure the freqeuncy of when new highlights are added.
+- **Automatic Syncing** 🔄: Configure the frequency of when new highlights are added.
 
 ## Installation
 
@@ -35,7 +36,7 @@ This app enables you to easily export all your digital highlights to Apple Notes
    - Enter the name of the folder where notes will be imported.
    - If the folder doesn’t exist, it will be created.
 4. **Pick a sync frequency:**
-   - Use the select box to pick a frequency your want your highlights to re-sync. (ex. `Every 1 Hour`, `Every 12 Hours` etc.)
+   - Use the select box to pick a frequency your want your highlights to re-sync. (e.g. `Every 1 Hour`, `Every 12 Hours` etc.)
 5. **Initiate Sync:** Click the button to start the sync process. You'll get messages on the progress of the current sync.
 6. **Success Notification:** Once completed, you’ll receive a success message.
 
@@ -94,7 +95,7 @@ Select account
 - [TypeScript](https://www.typescriptlang.org/)
 - [AppleScript](https://en.wikipedia.org/wiki/AppleScript)
 
---
+---
 
 ## Contributing
 
