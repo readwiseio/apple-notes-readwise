@@ -4,10 +4,17 @@
   "version": "0.1.1",
   "description": "Export Readwise highlights to Apple Notes",
   "main": ".vite/build/index.js",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Scarvy/apple-notes-readwise"
+  },
   "scripts": {
     "start": "electron-forge start",
     "package": "electron-forge package",
     "make": "electron-forge make",
+    "make:arm64": "electron-forge make -- --arch=arm64",
+    "make:x64": "electron-forge make -- --arch=x64",
+    "make:all": "npm run make:arm64 && npm run make:x64",
     "publish": "electron-forge publish",
     "lint": "eslint --ext .ts,.tsx ."
   },
@@ -70,6 +77,7 @@
     "react-dom": "^18.3.1",
     "tailwind-merge": "^2.5.4",
     "tailwindcss-animate": "^1.0.7",
+    "update-electron-app": "^3.0.0",
     "vite-tsconfig-paths": "^5.0.1"
   }
 }
