@@ -21,7 +21,7 @@ import { BrowserWindow } from 'electron'
 
 const md = new MarkdownIt()
 
-export function getObsidianClientID(): string {
+export function getAppleNotesClientID(): string {
   let obsidianClientId = store.get('rw-AppleNotesClientId')
   if (obsidianClientId) {
     return obsidianClientId
@@ -81,7 +81,7 @@ export class ReadwiseSync {
   getAuthHeaders() {
     return {
       AUTHORIZATION: `Token ${this.store.get('token')}`,
-      'Obsidian-Client': `${getObsidianClientID()}`
+      'Client-ID': `${getAppleNotesClientID()}`
     }
   }
 
@@ -122,14 +122,20 @@ export class ReadwiseSync {
 
     if (!notesFolder) {
       console.log('Readwise Official plugin: no folder selected')
-      this.mainWindow.webContents.send('toast:show', { variant: 'destructive', message: 'No folder selected' })
+      this.mainWindow.webContents.send('toast:show', {
+        variant: 'destructive',
+        message: 'No folder selected'
+      })
       await this.handleSyncError('Sync failed')
       return
     }
 
     if (!account) {
       console.log('Readwise Official plugin: no account selected')
-      this.mainWindow.webContents.send('toast:show', { variant: 'destructive', message: 'No account selected' })
+      this.mainWindow.webContents.send('toast:show', {
+        variant: 'destructive',
+        message: 'No account selected'
+      })
       await this.handleSyncError('Sync failed')
       return
     }
@@ -146,10 +152,11 @@ export class ReadwiseSync {
         // extract the filename and book id
         // 44011615
         const originalFileName = entry.filename
-        const originalName = originalFileName.split('--')[0].split('/')[2]
-        const bookId = originalFileName.split('--')[1].split('.')[0]
+        const originalName = originalFileName.split('/')[1].split('.')[0]
+        // const bookId = originalFileName.split('--')[1].split('.')[0]
+        const bookId = '1'
         console.log(`Original name: ${originalName}`)
-        console.log(`Book ID: ${bookId}`)
+        // console.log(`Book ID: ${bookId}`)
 
         // track the book
         bookIdsMap[originalName] = bookIdsMap
@@ -209,7 +216,10 @@ export class ReadwiseSync {
     await this.acknowledgeSyncCompleted()
     await this.handleSyncSuccess('Synced', exportID)
     this.mainWindow.webContents.send('syncing-complete')
-    this.mainWindow.webContents.send('toast:show', { variant: 'success', message: 'Sync completed' })
+    this.mainWindow.webContents.send('toast:show', {
+      variant: 'success',
+      message: 'Sync completed'
+    })
     console.log('Readwise Official plugin: Synced!', exportID)
     console.log('Readwise Official plugin: completed sync')
   }
@@ -244,7 +254,8 @@ export class ReadwiseSync {
   async acknowledgeSyncCompleted() {
     let response
     try {
-      response = await fetch(`${baseURL}/api/obsidian/sync_ack`, {
+      // TODO: change to apple-notes endpoint
+      response = await fetch(`${baseURL}/api/poll/apple-notes/sync_ack`, {
         headers: { ...this.getAuthHeaders(), 'Content-Type': 'application/json' },
         method: 'POST'
       })
@@ -283,11 +294,17 @@ export class ReadwiseSync {
             console.log(`Exporting Readwise data (${data.booksExported} / ${data.totalBooks}) ...`)
             this.mainWindow.webContents.send('export-pending', false)
             this.mainWindow.webContents.send('export-progress', data)
-            this.mainWindow.webContents.send('toast:show', { variant: 'default', message: `Exporting Readwise data (${data.booksExported} / ${data.totalBooks}` })
+            this.mainWindow.webContents.send('toast:show', {
+              variant: 'default',
+              message: `Exporting Readwise data (${data.booksExported} / ${data.totalBooks}`
+            })
           } else {
             console.log('Building export...')
             this.mainWindow.webContents.send('export-pending', true)
-            this.mainWindow.webContents.send('toast:show', { variant: 'default', message: 'Building export...' })
+            this.mainWindow.webContents.send('toast:show', {
+              variant: 'default',
+              message: 'Building export...'
+            })
           }
 
           // wait 1 second
@@ -296,13 +313,19 @@ export class ReadwiseSync {
           await this.getExportStatus(statusID, token, uuid)
         } else if (SUCCESS_STATUSES.includes(data.taskStatus)) {
           this.mainWindow.webContents.send('export-complete', {})
-          this.mainWindow.webContents.send('toast:show', { variant: 'success', message: 'Export completed' })
+          this.mainWindow.webContents.send('toast:show', {
+            variant: 'success',
+            message: 'Export completed'
+          })
           console.log('Export completed')
           await this.downloadExport(statusID)
         } else {
           console.log('Readwise Official plugin: unknown status in getExportStatus: ', data)
           this.mainWindow.webContents.send('export-error', 'Sync failed')
-          this.mainWindow.webContents.send('toast:show', { variant: 'destructive', message: 'Sync failed' })
+          this.mainWindow.webContents.send('toast:show', {
+            variant: 'destructive',
+            message: 'Sync failed'
+          })
           await this.handleSyncError('Sync failed')
           return
         }
@@ -348,10 +371,13 @@ export class ReadwiseSync {
     console.log('Readwise Official plugin: ', msg)
   }
 
-  async queueExport(statusId?: number,  auto?: boolean): Promise<string> {
+  async queueExport(statusId?: number, auto?: boolean): Promise<string> {
     if (this.store.get('isSyncing')) {
       console.log('Readwise sync already in progress')
-      this.mainWindow.webContents.send('toast:show', { variant: 'default', message: 'Sync already in progress' })
+      this.mainWindow.webContents.send('toast:show', {
+        variant: 'default',
+        message: 'Sync already in progress'
+      })
       return 'Sync already in progress'
     }
 
@@ -365,14 +391,20 @@ export class ReadwiseSync {
 
     if (!readwiseDir) {
       console.log('Readwise Official plugin: no folder selected')
-      this.mainWindow.webContents.send('toast:show', { variant: 'destructive', message: 'No folder selected' })
+      this.mainWindow.webContents.send('toast:show', {
+        variant: 'destructive',
+        message: 'No folder selected'
+      })
       await this.handleSyncError('Sync failed')
       return 'Sync failed'
     }
 
     if (!account) {
       console.log('Readwise Official plugin: no account selected')
-      this.mainWindow.webContents.send('toast:show', { variant: 'destructive', message: 'No account selected' })
+      this.mainWindow.webContents.send('toast:show', {
+        variant: 'destructive',
+        message: 'No account selected'
+      })
       await this.handleSyncError('Sync failed')
       return 'Sync failed'
     }
@@ -394,7 +426,10 @@ export class ReadwiseSync {
       if (!folderCreated) {
         console.log('Readwise Official plugin: failed to create folder')
         await this.handleSyncError('Sync failed')
-        this.mainWindow.webContents.send('toast:show', { variant: 'destructive', message: 'Error: Failed to create folder' })
+        this.mainWindow.webContents.send('toast:show', {
+          variant: 'destructive',
+          message: 'Error: Failed to create folder'
+        })
         return 'Sync failed'
       } else {
         console.log('Readwise Official plugin: folder created')
@@ -406,7 +441,7 @@ export class ReadwiseSync {
       parentDeleted = folderIsEmpty
     }
 
-    let url = `${baseURL}/api/obsidian/init?parentPageDeleted=${parentDeleted}`
+    let url = `${baseURL}/api/poll/apple-notes/init?parentPageDeleted=${parentDeleted}`
     if (statusId) {
       url += `&statusId=${statusId}`
     }
@@ -419,18 +454,21 @@ export class ReadwiseSync {
     let data: ExportRequestResponse | undefined
 
     const token = this.store.get('token')
-    const uuid = getObsidianClientID()
+    const uuid = getAppleNotesClientID()
 
     try {
       response = await fetch(url, {
         headers: {
-          ...this.getAuthHeaders()
+          ...this.getAuthHeaders(),
         }
       })
     } catch (e) {
       console.log('Readwise Official plugin: fetch failed in queueExport: ', e)
       await this.handleSyncError('Sync failed')
-      this.mainWindow.webContents.send('toast:show', { variant: 'destructive', message: 'Synced failed' })
+      this.mainWindow.webContents.send('toast:show', {
+        variant: 'destructive',
+        message: 'Synced failed'
+      })
       return 'Sync failed'
     }
 
@@ -441,7 +479,10 @@ export class ReadwiseSync {
       if (!data) {
         console.log('Readwise Official plugin: no data in queueExport')
         await this.handleSyncError('Sync failed')
-        this.mainWindow.webContents.send('toast:show', { variant: 'destructive', message: 'Synced failed' })
+        this.mainWindow.webContents.send('toast:show', {
+          variant: 'destructive',
+          message: 'Synced failed'
+        })
         return 'Sync failed'
       }
 
@@ -450,7 +491,10 @@ export class ReadwiseSync {
       if (data.latest_id <= lastest_id) {
         await this.handleSyncSuccess() // Data is already up to date
         console.log('Readwise data is already up to date')
-        this.mainWindow.webContents.send('toast:show', { variant: 'success', message: 'Data is already up to date' })
+        this.mainWindow.webContents.send('toast:show', {
+          variant: 'success',
+          message: 'Data is already up to date'
+        })
         return 'Data is already up to date'
       }
 
@@ -469,13 +513,19 @@ export class ReadwiseSync {
           'Latest Readwise sync already happended on your other device. Data should be up to date: ',
           response
         )
-        this.mainWindow.webContents.send('toast:show', { variant: 'success', message: 'Data is already up to date' })
+        this.mainWindow.webContents.send('toast:show', {
+          variant: 'success',
+          message: 'Data is already up to date'
+        })
         return 'Data is already up to date'
       }
     } else {
       console.log('Readwise Official plugin: bad response in queueExport: ', response)
       await this.handleSyncError(this.getErrorMessageFromResponse(response))
-      this.mainWindow.webContents.send('toast:show', { variant: 'destructive', message: 'Synced failed. Please try again.' })
+      this.mainWindow.webContents.send('toast:show', {
+        variant: 'destructive',
+        message: 'Synced failed. Please try again.'
+      })
       return 'Sync failed'
     }
   }
