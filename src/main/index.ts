@@ -184,7 +184,7 @@ ipcMain.handle('connect-to-readwise', async (event: Electron.Event) => {
   event.preventDefault()
   const uuid = getAppleNotesClientID()
 
-  shell.openExternal(`https://readwise.io/api_auth?token=${uuid}&service=obsidian`)
+  shell.openExternal(`https://readwise.io/api_auth?token=${uuid}&service=apple-notes`)
 
   const token = await getUserAuthToken(uuid)
   if (token) {
@@ -202,7 +202,7 @@ ipcMain.handle('connect-to-readwise', async (event: Electron.Event) => {
 
 ipcMain.handle('open-custom-format-window', (event: Electron.Event) => {
   event.preventDefault()
-  shell.openExternal(`https://readwise.io/export/obsidian/preferences`)
+  shell.openExternal(`https://readwise.io/export/apple-notes/preferences`)
 })
 
 ipcMain.handle('fetch-apple-notes-accounts', async () => {
