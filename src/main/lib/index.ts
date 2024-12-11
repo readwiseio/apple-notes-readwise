@@ -38,31 +38,31 @@ export async function getUserAuthToken(uuid: string, attempt = 0): Promise<strin
   try {
     response = await fetch(`${baseURL}/api/auth?token=${uuid}`)
   } catch (e) {
-    console.log('Readwise Official plugin: fetch failed in getUserAuthToken: ', e)
+    console.log('MAIN: fetch failed in getUserAuthToken: ', e)
     return ''
   }
   if (response && response.ok) {
     data = await response.json()
   } else {
-    console.log('Readwise Official plugin: bad response in getUserAuthToken: ', response)
+    console.log('MAIN: bad response in getUserAuthToken: ', response)
     return ''
   }
 
   if (!data) {
-    console.log('Readwise Official plugin: no data in getUserAuthToken')
+    console.log('MAIN: no data in getUserAuthToken')
     return ''
   }
 
   if (data.userAccessToken) {
-    console.log('Readwise Official plugin: successfully authenticated with Readwise')
+    console.log('MAIN: successfully authenticated with Readwise')
     return data.userAccessToken
   } else {
     if (attempt > 20) {
-      console.log('Readwise Official plugin: reached attempt limit in getUserAuthToken')
+      console.log('MAIN: reached attempt limit in getUserAuthToken')
       return ''
     }
     console.log(
-      `Readwise Official plugin: didn't get token data, retrying (attempt ${attempt + 1})`
+      `MAIN: didn't get token data, retrying (attempt ${attempt + 1})`
     )
     await new Promise((resolve) => setTimeout(resolve, 1000))
     return await getUserAuthToken(uuid, attempt + 1)
@@ -94,7 +94,7 @@ export class ReadwiseSync {
     // const lastSavedStatusID = store.get("lastSavedStatusID");
     // if (exportID <= lastSavedStatusID) {
     //   console.log(
-    //     `Readwise Official plugin: Already saved data from export ${exportID}`
+    //     `MAIN: Already saved data from export ${exportID}`
     //   );
     //   await handleSyncSuccess("Synced");
     //   return;
@@ -104,12 +104,12 @@ export class ReadwiseSync {
     try {
       response = await fetch(artifactURL, { headers: this.getAuthHeaders() })
     } catch (e) {
-      console.log('Readwise Official plugin: fetch failed in downloadExport: ', e)
+      console.log('MAIN: fetch failed in downloadExport: ', e)
     }
     if (response && response.ok) {
       blob = await response.blob()
     } else {
-      console.log('Readwise Official plugin: bad response in downloadExport: ', response)
+      console.log('MAIN: bad response in downloadExport: ', response)
       return
     }
 
@@ -121,7 +121,7 @@ export class ReadwiseSync {
     const account = this.store.get('currentAccount')
 
     if (!notesFolder) {
-      console.log('Readwise Official plugin: no folder selected')
+      console.log('MAIN: no folder selected')
       this.mainWindow.webContents.send('toast:show', {
         variant: 'destructive',
         message: 'No folder selected'
@@ -131,7 +131,7 @@ export class ReadwiseSync {
     }
 
     if (!account) {
-      console.log('Readwise Official plugin: no account selected')
+      console.log('MAIN: no account selected')
       this.mainWindow.webContents.send('toast:show', {
         variant: 'destructive',
         message: 'No account selected'
@@ -172,27 +172,27 @@ export class ReadwiseSync {
             let result = false
             // check if the note already exists
             if (await checkIfNoteExist(originalName, notesFolder, account)) {
-              console.log('Note already exists, updating note with new content')
+              console.log('MAIN: Note already exists, updating note with new content')
               result = await updateExistingNote(contentToSave, originalName, notesFolder, account)
             } else {
               // create a new note
-              console.log("Note doesn't exist, creating new note")
+              console.log("MAIN: Note doesn't exist, creating new note")
               result = await createNewNote(contentToSave, originalName, notesFolder, account)
             }
 
             // track the result of the note creation
             // if it fails, add the book id to the failed list
             if (result) {
-              console.log('Readwise Official plugin: note created successfully')
+              console.log('MAIN: note created successfully')
               this.mainWindow.webContents.send('syncing-progress')
             } else {
-              console.log('Readwise Official plugin: failed to create note')
+              console.log('MAIN: failed to create note')
               const failedBooks = store.get('failedBooks')
               const deduplicatedFailedBooks = new Set([...failedBooks, bookId])
               store.set('failedBooks', Array.from(deduplicatedFailedBooks))
             }
           } else {
-            console.log('Readwise Official plugin: entry has no data')
+            console.log('MAIN: entry has no data')
             if (bookId) {
               const failedBooks = store.get('failedBooks')
               const deduplicatedFailedBooks = new Set([...failedBooks, bookId])
@@ -200,7 +200,7 @@ export class ReadwiseSync {
             }
           }
         } catch (e) {
-          console.log('Readwise Official plugin: error reading file: ', e)
+          console.log('MAIN: error reading file: ', e)
           if (bookId) {
             const failedBooks = store.get('failedBooks')
             const deduplicatedFailedBooks = new Set([...failedBooks, bookId])
@@ -220,15 +220,15 @@ export class ReadwiseSync {
       variant: 'success',
       message: 'Sync completed'
     })
-    console.log('Readwise Official plugin: Synced!', exportID)
-    console.log('Readwise Official plugin: completed sync')
+    console.log('MAIN: Synced!', exportID)
+    console.log('MAIN: completed sync')
   }
 
   async removeBooksFromRefresh(bookIds: Array<string>) {
     if (!bookIds.length) return
 
     console.log(
-      `Readwise Official plugin: removing books ids ${bookIds.join(', ')} from refresh list`
+      `MAIN: removing books ids ${bookIds.join(', ')} from refresh list`
     )
 
     const booksToRefresh = this.store.get('booksToRefresh')
@@ -242,7 +242,7 @@ export class ReadwiseSync {
     if (!bookIds.length) return
 
     console.log(
-      `Readwise Official plugin: removing books ids ${bookIds.join(', ')} from failed list`
+      `MAIN: removing books ids ${bookIds.join(', ')} from failed list`
     )
     const failedBooks = this.store.get('failedBooks')
     const deduplicatedFailedBooks = failedBooks.filter(
@@ -260,12 +260,12 @@ export class ReadwiseSync {
         method: 'POST'
       })
     } catch (e) {
-      console.log('Readwise Official plugin: fetch failed in acknowledgeSyncCompleted: ', e)
+      console.log('MAIN: fetch failed in acknowledgeSyncCompleted: ', e)
     }
     if (response && response.ok) {
       return
     } else {
-      console.log('Readwise Official plugin: bad response in acknowledgeSyncCompleted: ', response)
+      console.log('MAIN: bad response in acknowledgeSyncCompleted: ', response)
       await this.handleSyncError(this.getErrorMessageFromResponse(response))
       return
     }
@@ -320,7 +320,7 @@ export class ReadwiseSync {
           console.log('Export completed')
           await this.downloadExport(statusID)
         } else {
-          console.log('Readwise Official plugin: unknown status in getExportStatus: ', data)
+          console.log('MAIN: unknown status in getExportStatus: ', data)
           this.mainWindow.webContents.send('export-error', 'Sync failed')
           this.mainWindow.webContents.send('toast:show', {
             variant: 'destructive',
@@ -330,13 +330,13 @@ export class ReadwiseSync {
           return
         }
       } else {
-        console.log('Readwise Official plugin: bad response in getExportStatus: ', response)
+        console.log('MAIN: bad response in getExportStatus: ', response)
         this.mainWindow.webContents.send('export-error', 'Sync failed')
         await this.handleSyncError(this.getErrorMessageFromResponse(response))
       }
     } catch (e) {
       this.mainWindow.webContents.send('export-error', 'Sync failed')
-      console.log('Readwise Official plugin: fetch failed in getExportStatus: ', e)
+      console.log('MAIN: fetch failed in getExportStatus: ', e)
       await this.handleSyncError('Sync failed')
     }
   }
@@ -354,7 +354,7 @@ export class ReadwiseSync {
   async handleSyncError(msg = 'Sync failed') {
     await this.clearSettingsAfterRun()
     this.store.set('lastSyncFailed', true)
-    console.log('Readwise Official plugin: ', msg)
+    console.log('MAIN: ', msg)
   }
 
   async clearSettingsAfterRun() {
@@ -368,7 +368,7 @@ export class ReadwiseSync {
     if (exportID) {
       this.store.set('lastSavedStatusID', exportID)
     }
-    console.log('Readwise Official plugin: ', msg)
+    console.log('MAIN: ', msg)
   }
 
   async queueExport(statusId?: number, auto?: boolean): Promise<string> {
@@ -381,7 +381,7 @@ export class ReadwiseSync {
       return 'Sync already in progress'
     }
 
-    console.log('Readwise Official plugin: requesting archive...')
+    console.log('MAIN: requesting archive...')
     this.store.set('isSyncing', true)
 
     const readwiseDir = this.store.get('readwiseDir')
@@ -390,7 +390,7 @@ export class ReadwiseSync {
     console.log('Readwise app: syncing to folder and account: ', { readwiseDir, account })
 
     if (!readwiseDir) {
-      console.log('Readwise Official plugin: no folder selected')
+      console.log('MAIN: no folder selected')
       this.mainWindow.webContents.send('toast:show', {
         variant: 'destructive',
         message: 'No folder selected'
@@ -400,7 +400,7 @@ export class ReadwiseSync {
     }
 
     if (!account) {
-      console.log('Readwise Official plugin: no account selected')
+      console.log('MAIN: no account selected')
       this.mainWindow.webContents.send('toast:show', {
         variant: 'destructive',
         message: 'No account selected'
@@ -420,11 +420,11 @@ export class ReadwiseSync {
 
     // if the folder does not exist, create it and set parentDeleted to true to initiate a full sync
     if (!folderExists) {
-      console.log('Readwise Official plugin: folder does not exist, creating it')
+      console.log('MAIN: folder does not exist, creating it')
       parentDeleted = true
       const folderCreated = await createFolderInAppleNotes(readwiseDir, account)
       if (!folderCreated) {
-        console.log('Readwise Official plugin: failed to create folder')
+        console.log('MAIN: failed to create folder')
         await this.handleSyncError('Sync failed')
         this.mainWindow.webContents.send('toast:show', {
           variant: 'destructive',
@@ -432,7 +432,7 @@ export class ReadwiseSync {
         })
         return 'Sync failed'
       } else {
-        console.log('Readwise Official plugin: folder created')
+        console.log('MAIN: folder created')
       }
     } else {
       // if the folder exists, set parentDeleted to folderIsEmpty value (true if empty, false if not)
@@ -448,7 +448,7 @@ export class ReadwiseSync {
     if (auto) {
       url += `&auto=${auto}`
     }
-    console.log('Readwise Official plugin: queueExport url: ', url)
+    console.log('MAIN: queueExport url: ', url)
 
     let response: Response | undefined
     let data: ExportRequestResponse | undefined
@@ -463,7 +463,7 @@ export class ReadwiseSync {
         }
       })
     } catch (e) {
-      console.log('Readwise Official plugin: fetch failed in queueExport: ', e)
+      console.log('MAIN: fetch failed in queueExport: ', e)
       await this.handleSyncError('Sync failed')
       this.mainWindow.webContents.send('toast:show', {
         variant: 'destructive',
@@ -477,7 +477,7 @@ export class ReadwiseSync {
 
       // check if data is defined
       if (!data) {
-        console.log('Readwise Official plugin: no data in queueExport')
+        console.log('MAIN: no data in queueExport')
         await this.handleSyncError('Sync failed')
         this.mainWindow.webContents.send('toast:show', {
           variant: 'destructive',
@@ -499,13 +499,13 @@ export class ReadwiseSync {
       }
 
       this.store.set('lastSavedStatusID', data.latest_id)
-      console.log('Readwise Official plugin: saved currentSyncStatusID: ', data.latest_id)
+      console.log('MAIN: saved currentSyncStatusID: ', data.latest_id)
 
       // save the sync status id so it can be polled until the archive is ready
       if (response.status === 201) {
         console.log('Syncing Readwise data')
         await this.getExportStatus(data.latest_id, token, uuid)
-        console.log('Readwise Official plugin: queueExport done')
+        console.log('MAIN: queueExport done')
         return 'Sync completed'
       } else {
         await this.handleSyncSuccess('Synced', data.latest_id)
@@ -520,7 +520,7 @@ export class ReadwiseSync {
         return 'Data is already up to date'
       }
     } else {
-      console.log('Readwise Official plugin: bad response in queueExport: ', response)
+      console.log('MAIN: bad response in queueExport: ', response)
       await this.handleSyncError(this.getErrorMessageFromResponse(response))
       this.mainWindow.webContents.send('toast:show', {
         variant: 'destructive',
@@ -538,7 +538,7 @@ export class ReadwiseSync {
 
     let targetBookIds = [...(bookIds || []), ...failedBooks]
 
-    console.log('Readwise Official plugin: syncing highlights for books: ', targetBookIds)
+    console.log('MAIN: syncing highlights for books: ', targetBookIds)
 
     const booksToRefresh = this.store.get('booksToRefresh')
     const refreshBooks = this.store.get('refreshBooks')
@@ -548,12 +548,12 @@ export class ReadwiseSync {
     }
 
     if (!targetBookIds.length) {
-      console.log('Readwise Official plugin: no targetBookIds, checking for new highlights')
+      console.log('MAIN: no targetBookIds, checking for new highlights')
       await this.queueExport()
       return 'Synced'
     }
 
-    console.log('Readwise Official plugin: refreshing books: ', {
+    console.log('MAIN: refreshing books: ', {
       targetBookIds
     })
 
@@ -571,7 +571,7 @@ export class ReadwiseSync {
           },
           method: 'POST',
           body: JSON.stringify({
-            exportTarget: 'obsidian',
+            exportTarget: 'apple-notes',
             books: targetBookIds
           })
         }
@@ -581,14 +581,14 @@ export class ReadwiseSync {
         await this.queueExport()
         return 'Synced'
       } else {
-        console.log(`Readwise Official plugin: saving book id ${bookIds} to refresh later`)
+        console.log(`MAIN: saving book id ${bookIds} to refresh later`)
         const booksToRefresh = store.get('booksToRefresh')
         const deduplicatedBookIds = new Set([...booksToRefresh, ...bookIds])
         this.store.set('booksToRefresh', Array.from(deduplicatedBookIds))
         return 'Sync failed'
       }
     } catch (e) {
-      console.log('Readwise Official plugin: fetch failed in syncBookHighlights: ', e)
+      console.log('MAIN: fetch failed in syncBookHighlights: ', e)
       return 'Sync failed'
     }
   }
