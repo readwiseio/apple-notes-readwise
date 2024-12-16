@@ -267,7 +267,7 @@ export class ReadwiseSync {
   async acknowledgeSyncCompleted() {
     let response
     try {
-      response = await fetch(`${baseURL}/api/poll/apple-notes/sync_ack`, {
+      response = await fetch(`${baseURL}/api/obsidian/sync_ack`, {
         headers: { ...this.getAuthHeaders(), 'Content-Type': 'application/json' },
         method: 'POST'
       })
@@ -429,7 +429,7 @@ export class ReadwiseSync {
       parentDeleted = folderIsEmpty
     }
 
-    let url = `${baseURL}/api/poll/apple-notes/init?parentPageDeleted=${parentDeleted}`
+    let url = `${baseURL}/api/obsidian/init?parentPageDeleted=${parentDeleted}`
     if (statusId) {
       url += `&statusId=${statusId}`
     }
