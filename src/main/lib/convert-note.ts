@@ -388,7 +388,7 @@ export class NoteConverter extends ANConverter {
 		// 	? `\n${this.app.fileManager.generateMarkdownLink(attachment, '/')}\n` 
 		// 	: ` **(error reading attachment)**`;
 		let link = attachment
-		? `\n<img src='${attachment}'>\n` 
+		? `\n<img src='file://${attachment}'>\n` 
 		: ` **(error reading attachment)**`;
 		
 		if (this.importer.includeHandwriting && row.ZHANDWRITINGSUMMARY) {
