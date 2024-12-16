@@ -143,7 +143,11 @@ export class ReadwiseSync {
       // Output entry names
       this.mainWindow.webContents.send('syncing-start', entries.length)
       for (const entry of entries) {
+        // TODO: fix apple notes filename... it's not the same as the original filename
+        // Found entry: .md
+        // Extracting entry: 46,109,100
         console.log(`Found entry: ${entry.filename}`)
+        console.log(`Extracting entry: ${entry.rawFilename}`) 
 
         // Readwise/Books/Introduction-to-Algorithms--44011615.md
         // extract the filename and book id
