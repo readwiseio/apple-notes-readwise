@@ -12,12 +12,13 @@ import {
   checkIfNoteExist,
   checkFolderExistsInAppleNotes,
   checkFolderExistsAndIsEmptyInAppleNotes,
-  updateExistingNote,
   createNewNote,
-  createFolderInAppleNotes
+  createFolderInAppleNotes,
+  appendToExistingNote
 } from './utils'
 import { baseURL } from '../../shared/constants'
 import { BrowserWindow } from 'electron'
+import { AppleNotesExtractor } from './apple-notes'
 
 const md = new MarkdownIt()
 
@@ -72,10 +73,12 @@ export async function getUserAuthToken(uuid: string, attempt = 0): Promise<strin
 export class ReadwiseSync {
   mainWindow: BrowserWindow
   store: any // TODO: type this
+  database: any 
 
   constructor(mainWindow: BrowserWindow, store: any) {
     this.mainWindow = mainWindow
     this.store = store
+    this.database = null
   }
 
   getAuthHeaders() {
@@ -166,7 +169,23 @@ export class ReadwiseSync {
             // check if the note already exists
             if (await checkIfNoteExist(originalName, notesFolder, account)) {
               console.log('Note already exists, updating note with new content')
-              result = await updateExistingNote(contentToSave, originalName, notesFolder, account)
+              
+              // check if the database is already initialized
+              // TODO - check if account is an iCloud account, if not then don't use AppleNotesExtractor
+              if (this.database === null) {
+                this.database = new AppleNotesExtractor(this.mainWindow)
+              }
+
+              // get the note from the apple notes database
+              const existingHTMLContent = await this.database.extractNoteHTML(originalName, notesFolder)
+              const updatedContent = existingHTMLContent + "<div><br></div>" + contentToSave
+
+              // OLD WAY THAT DID NOT WORK WITH ICLOUD ACCOUNTS
+              // result = await updateExistingNote(contentToSave, originalName, notesFolder, account)
+
+              // NEW WAY THAT WORKS WITH ICLOUD ACCOUNTS (clears the note and rewrites it)
+              result = await appendToExistingNote(updatedContent, originalName, notesFolder, account)
+              
             } else {
               // create a new note
               console.log("Note doesn't exist, creating new note")
