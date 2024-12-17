@@ -35,24 +35,48 @@ export function splitext(name: string) {
 
 // Source: https://github.com/obsidianmd/obsidian-importer/blob/577036ad55fe79c92eeee6f961f8073da26622f5/src/formats/apple-notes.ts#L18
 export class AppleNotesExtractor {
-  database: any
+  database: any // TODO: Type this
   protobufRoot: Root
   window: BrowserWindow
 
   keys: Record<string, number> = {}
   owners: Record<number, number> = {}
-  resolvedAccounts: Record<number, ANAccount> = {}
 
-  multiAccount = false
+  accountID = 0
+  account: ANAccount = { name: '', uuid: '', path: '' }
+  folder: NoteFolder = { z_pk: 0, ztitle: '' }
+
   noteCount = 0
   parsedNotes = 0
-
   omitFirstLine = false
 
   constructor(window: BrowserWindow, omitFirstLine = false) {
     this.protobufRoot = Root.fromJSON(descriptor)
     this.window = window
     this.omitFirstLine = omitFirstLine
+  }
+
+  async init(folder: string): Promise<void> {
+    this.database = await this.getNotesDatabase()
+
+    const rows = this.database
+      .prepare('SELECT Z_ENT as z_ent, Z_NAME as z_name FROM z_primarykey')
+      .all()
+    this.keys = Object.fromEntries(rows.map((r: PrimaryKeyRow) => [r.z_name, r.z_ent]))
+
+    const noteAccount = this.database
+      .prepare(
+        `SELECT Z_PK as z_pk FROM ziccloudsyncingobject WHERE z_ent = ${this.keys.ICAccount}`
+      )
+      .get() as NoteAccount
+    await this.resolveAccount(noteAccount.z_pk)
+    this.accountID = noteAccount.z_pk
+
+    this.folder = this.database
+      .prepare(
+        `SELECT Z_PK as z_pk, ZTITLE2 as ztitle2 FROM ziccloudsyncingobject WHERE z_ent = ${this.keys.ICFolder} AND ztitle2 = '${folder}'`
+      )
+      .get() as NoteFolder
   }
 
   async getNotesDatabase(): Promise<any> {
@@ -67,6 +91,34 @@ export class AppleNotesExtractor {
     await fsPromises.copyFile(originalDB + '-wal', cloneDB + '-wal')
 
     return new Database(cloneDB, { readonly: true })
+  }
+
+  close() {
+    if (this.database) {
+      this.database.close()
+      this.database = null
+    }
+  }
+
+  async extractNoteHTML(name: string): Promise<string | void> {
+    const notes = this.database
+      .prepare(
+        `SELECT
+          Z_PK as z_pk, ZFOLDER as zfolder, ZTITLE1 as ztitle1 FROM ziccloudsyncingobject
+        WHERE
+          z_ent = ${this.keys.ICNote}
+          AND ztitle1 = '${name}'
+          AND ztitle1 IS NOT NULL
+          AND zfolder = ${this.folder.z_pk}
+          AND zfolder NOT IN (1)`
+      )
+      .all() as Note[]
+
+    // decode the protobuf
+    const html = await this.resolveNote(notes[0].z_pk)
+    console.log('HTML: ', html)
+
+    return html
   }
 
   async resolveNote(id: number): Promise<string | void> {
@@ -109,10 +161,6 @@ export class AppleNotesExtractor {
   }
 
   async resolveAccount(id: number): Promise<void> {
-    if (!this.multiAccount && Object.keys(this.resolvedAccounts).length) {
-      this.multiAccount = true
-    }
-
     const account = await this.database
       .prepare(
         `
@@ -122,70 +170,11 @@ export class AppleNotesExtractor {
       )
       .get()
 
-    this.resolvedAccounts[id] = {
+    this.account = {
       name: account.zname,
       uuid: account.zidentifier,
       path: path.join(os.homedir(), NOTE_FOLDER_PATH, 'Accounts', account.zidentifier)
     }
-
-    console.log('Resolved Account: ', this.resolvedAccounts[id])
-  }
-
-  async extractNoteHTML(name: string, folder: string): Promise<string | void> {
-    if (this.database === undefined) {
-      this.database = await this.getNotesDatabase()
-    }
-
-    // Get the primary keys
-    const rows = this.database
-      .prepare('SELECT Z_ENT as z_ent, Z_NAME as z_name FROM z_primarykey')
-      .all() as PrimaryKeyRow[]
-    this.keys = Object.fromEntries(rows.map((r) => [r.z_name, r.z_ent]))
-
-    const noteAccounts = this.database
-      .prepare(
-        `SELECT Z_PK as z_pk FROM ziccloudsyncingobject WHERE z_ent = ${this.keys.ICAccount}`
-      )
-      .all() as NoteAccount[]
-
-    const noteFolders = this.database
-      .prepare(
-        `SELECT Z_PK as z_pk, ZTITLE2 as ztitle2 FROM ziccloudsyncingobject WHERE z_ent = ${this.keys.ICFolder} AND ztitle2 = '${folder}'`
-      )
-      .all() as NoteFolder[]
-
-    console.log('Keys: ', this.keys)
-    console.log('Note Accounts: ', noteAccounts)
-    console.log('Note Folders: ', noteFolders)
-
-    // Resolve the account
-    for (let a of noteAccounts) await this.resolveAccount(a.z_pk)
-    this.owners[noteFolders[0].z_pk] = noteAccounts[0].z_pk
-
-    const notes = this.database
-      .prepare(
-        `SELECT
-          Z_PK as z_pk, ZFOLDER as zfolder, ZTITLE1 as ztitle1 FROM ziccloudsyncingobject
-        WHERE
-          z_ent = ${this.keys.ICNote}
-          AND ztitle1 = '${name}'
-          AND ztitle1 IS NOT NULL
-          AND zfolder = ${noteFolders[0].z_pk}
-          AND zfolder NOT IN (1)`
-      )
-      .all() as Note[]
-
-    console.log('Notes: ', notes.length)
-    console.log('Notes: ', notes)
-    console.log('Note ID: ', notes[0].z_pk)
-
-    // decode the protobuf
-    const html = await this.resolveNote(notes[0].z_pk)
-    console.log('HTML: ', html)
-
-    this.database.close()
-
-    return html
   }
 
   decodeData(hexdata: string, converterType: any) {
@@ -307,10 +296,10 @@ export class AppleNotesExtractor {
     console.log('Out Ext: ', outExt)
     console.log('Row: ', row)
 
-    console.log('Account: ', this.resolvedAccounts[2])
+    console.log('Account: ', this.account)
 
     try {
-      const binary = await this.getAttachmentSource(this.resolvedAccounts[2], sourcePath)
+      const binary = await this.getAttachmentSource(this.account, sourcePath)
       const attachmentPath = path.join(os.homedir(), 'Documents', 'Readwise', 'Attachments')
 
       if (!fs.existsSync(attachmentPath)) {
@@ -333,7 +322,7 @@ export class AppleNotesExtractor {
     // this.ctx.reportAttachmentSuccess(this.resolvedFiles[id].path);
 
     // the path to the original attachment file
-    const attachmentFilePath = path.join(this.resolvedAccounts[2].path, sourcePath)
+    const attachmentFilePath = path.join(this.account.path, sourcePath)
     console.log('File: ', attachmentFilePath)
     return attachmentFilePath
   }
