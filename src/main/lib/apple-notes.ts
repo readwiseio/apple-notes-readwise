@@ -57,13 +57,17 @@ export class AppleNotesExtractor {
   }
 
   async init(folder: string): Promise<void> {
+    console.log('MAIN: Initializing Apple Notes Extractor...')
     this.database = await this.getNotesDatabase()
+    console.log('MAIN: Database loaded...')
 
+    console.log('MAIN: Getting primary keys...')
     const rows = this.database
       .prepare('SELECT Z_ENT as z_ent, Z_NAME as z_name FROM z_primarykey')
       .all()
     this.keys = Object.fromEntries(rows.map((r: PrimaryKeyRow) => [r.z_name, r.z_ent]))
 
+    console.log('MAIN: Getting note account...')
     const noteAccount = this.database
       .prepare(
         `SELECT Z_PK as z_pk FROM ziccloudsyncingobject WHERE z_ent = ${this.keys.ICAccount}`
@@ -72,6 +76,7 @@ export class AppleNotesExtractor {
     await this.resolveAccount(noteAccount.z_pk)
     this.accountID = noteAccount.z_pk
 
+    console.log('MAIN: Getting note folder...')
     this.folder = this.database
       .prepare(
         `SELECT Z_PK as z_pk, ZTITLE2 as ztitle2 FROM ziccloudsyncingobject WHERE z_ent = ${this.keys.ICFolder} AND ztitle2 = '${folder}'`
@@ -80,6 +85,7 @@ export class AppleNotesExtractor {
   }
 
   async getNotesDatabase(): Promise<any> {
+    console.log('MAIN: Getting notes database...')
     const dataPath = path.join(os.homedir(), NOTE_FOLDER_PATH)
 
     const originalDB = path.join(dataPath, NOTE_DB)
@@ -94,13 +100,16 @@ export class AppleNotesExtractor {
   }
 
   close() {
+    console.log('MAIN: Closing Apple Notes Extractor...')
     if (this.database) {
       this.database.close()
       this.database = null
+      console.log('MAIN: Database closed...')
     }
   }
 
   async extractNoteHTML(name: string): Promise<string | void> {
+    console.log('MAIN: Extracting note: ', name)
     const notes = this.database
       .prepare(
         `SELECT
@@ -122,6 +131,7 @@ export class AppleNotesExtractor {
   }
 
   async resolveNote(id: number): Promise<string | void> {
+    console.log('Resolving note ID: ', id)
     const row = this.database
       .prepare(
         `SELECT
@@ -152,8 +162,10 @@ export class AppleNotesExtractor {
 
     // Decode the protobuf into HTML
     const converter = this.decodeData(row.zhexdata, NoteConverter)
+    console.log('Successfully decoded note data...')
     const html = await converter.format()
-    console.log('HTML: ', html)
+    console.log('Successfully formatted note data to html...')
+    console.log('MAIN: Final HTML: ', html)
 
     // Write the file
     fs.writeFileSync(file, html, 'utf8')
@@ -161,6 +173,7 @@ export class AppleNotesExtractor {
   }
 
   async resolveAccount(id: number): Promise<void> {
+    console.log('Resolving account ID: ', id)
     const account = await this.database
       .prepare(
         `
@@ -175,21 +188,25 @@ export class AppleNotesExtractor {
       uuid: account.zidentifier,
       path: path.join(os.homedir(), NOTE_FOLDER_PATH, 'Accounts', account.zidentifier)
     }
+    console.log('Account: ', this.account)
   }
 
   decodeData(hexdata: string, converterType: any) {
     // TODO: Implement the converterType
+    console.log('Decoding note data...')
     const unzipped = zlib.gunzipSync(Buffer.from(hexdata, 'hex'))
     const decoded = this.protobufRoot.lookupType('ciofecaforensics.Document').decode(unzipped)
     return new converterType(this, decoded, true)
   }
 
   async resolveAttachment(id: number, uti: ANAttachment | string): Promise<any | null> {
+    console.log('Resolving attachment ID: ', id)
     let sourcePath, outName, outExt, row, file
 
     switch (uti) {
       case ANAttachment.ModifiedScan:
         // A PDF only seems to be generated when you modify the scan :(
+        console.log('Modified Scan')
         row = await this.database
           .prepare(
             `
@@ -215,6 +232,7 @@ export class AppleNotesExtractor {
         break
 
       case ANAttachment.Scan:
+        console.log('Scan')
         row = await this.database
           .prepare(
             `
@@ -237,6 +255,7 @@ export class AppleNotesExtractor {
         break
 
       case ANAttachment.Drawing:
+        console.log('Drawing')
         row = await this.database
           .prepare(
             `
@@ -269,6 +288,7 @@ export class AppleNotesExtractor {
         break
 
       default:
+        console.log('Default')
         row = await this.database
           .prepare(
             `
