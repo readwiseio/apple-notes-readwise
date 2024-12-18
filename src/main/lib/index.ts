@@ -120,6 +120,9 @@ export class ReadwiseSync {
     const notesFolder = this.store.get('readwiseDir')
     const account = this.store.get('currentAccount')
 
+    // Initialize the database connection to Apple Notes
+    await this.database.init(notesFolder)
+
     if (!notesFolder) {
       console.log('MAIN: no folder selected')
       this.mainWindow.webContents.send('toast:show', {
@@ -151,14 +154,18 @@ export class ReadwiseSync {
         // Extracting entry: 46,109,100
         console.log(`Found entry: ${entry.filename}`)
 
-        // Readwise/Books/Introduction-to-Algorithms--44011615.md
-        // extract the filename and book id
-        // 44011615
+        // filename examples:
+        // Updated note: Articles/The Sound of Software (Updated December 18, 2024 at 1112 AM)--46885037.md
+        // New note: Articles/The Sound of Software--46885037.md
         const originalFileName = entry.filename
-        const originalName = originalFileName.split('/')[1].split('--')[0]
-        const bookId = originalFileName.split('--')[1].split('.')[0]
-        console.log(`Original name: ${originalName}`)
-        console.log(`Book ID: ${bookId}`)
+        const originalName = originalFileName
+          .split('/')[1]
+          .split('--')[0]
+          .split('(')[0]
+          .trim();
+        const bookId = originalFileName.split('--')[1].split('.')[0].trim();
+        console.log(`Original name: ${originalName}`);
+        console.log(`Book ID: ${bookId}`);
 
         // track the book
         bookIdsMap[originalName] = bookIdsMap
