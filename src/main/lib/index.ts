@@ -158,14 +158,10 @@ export class ReadwiseSync {
         // Updated note: Articles/The Sound of Software (Updated December 18, 2024 at 1112 AM)--46885037.md
         // New note: Articles/The Sound of Software--46885037.md
         const originalFileName = entry.filename
-        const originalName = originalFileName
-          .split('/')[1]
-          .split('--')[0]
-          .split('(')[0]
-          .trim();
-        const bookId = originalFileName.split('--')[1].split('.')[0].trim();
-        console.log(`Original name: ${originalName}`);
-        console.log(`Book ID: ${bookId}`);
+        const originalName = originalFileName.split('/')[1].split('--')[0].split('(')[0].trim()
+        const bookId = originalFileName.split('--')[1].split('.')[0].trim()
+        console.log(`Original name: ${originalName}`)
+        console.log(`Book ID: ${bookId}`)
 
         // track the book
         bookIdsMap[originalName] = bookIdsMap
@@ -188,7 +184,11 @@ export class ReadwiseSync {
                 originalName,
                 notesFolder
               )
-              const updatedContent = existingHTMLContent + '<div><br></div>' + contentToSave
+
+              const updatedContent =
+                existingHTMLContent +
+                '<div><br></div>' +
+                contentToSave.replace(/<h1>.*?<\/h1>\s*/s, '') // remove the title from the content
 
               // OLD WAY THAT DID NOT WORK WITH ICLOUD ACCOUNTS
               // result = await updateExistingNote(contentToSave, originalName, notesFolder, account)
