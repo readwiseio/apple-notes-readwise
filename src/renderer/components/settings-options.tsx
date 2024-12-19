@@ -251,6 +251,7 @@ export function SettingsOptions({ onIsSyncing }: SettingsOptionsProps) {
               value={currentAccount}
               onChange={handleAccountChange}
               options={accounts}
+              disabled={true}
             />
           </div>
         </div>
