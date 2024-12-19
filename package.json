@@ -16,7 +16,9 @@
     "make:x64": "electron-forge make -- --arch=x64",
     "make:all": "npm run make:arm64 && npm run make:x64",
     "publish": "electron-forge publish",
-    "lint": "eslint --ext .ts,.tsx ."
+    "lint": "eslint --ext .ts,.tsx .",
+    "clean": "rm -rf .vite && rm -rf out",
+    "rebuild": "electron-rebuild -f -w better-sqlite3"
   },
   "devDependencies": {
     "@electron-forge/cli": "^7.5.0",
@@ -36,6 +38,7 @@
     "@typescript-eslint/parser": "^5.62.0",
     "autoprefixer": "^10.4.20",
     "electron": "33.0.2",
+    "electron-rebuild": "^3.2.9",
     "eslint": "^8.57.1",
     "eslint-import-resolver-typescript": "^3.6.3",
     "eslint-plugin-import": "^2.31.0",
