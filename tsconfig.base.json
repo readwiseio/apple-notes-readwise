@@ -16,5 +16,6 @@
     "noUnusedParameters": true,
     "noImplicitAny": false,
     "noImplicitReturns": true,
+    "allowSyntheticDefaultImports": true,
   },
 }

@@ -41,6 +41,18 @@ export interface ANNoteData {
 
 // Source from: https://github.com/obsidianmd/obsidian-importer/blob/master/src/formats/apple-notes/models.ts
 
+export type SQLiteTagSpawned = {
+	get(...query: any[]): Promise<SQLiteRow>;
+	all(...query: any[]): Promise<SQLiteTable>;
+	close(): void;
+};
+
+type SQLiteTable = SQLiteRow[];
+
+interface SQLiteRow extends Record<string, any> {
+	[member: string]: any;
+}
+
 export abstract class ANConverter {
 	importer: AppleNotesExtractor;
 	app: BrowserWindow;

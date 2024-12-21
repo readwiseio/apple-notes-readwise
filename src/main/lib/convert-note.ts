@@ -385,58 +385,38 @@ export class NoteConverter extends ANConverter {
     switch (attr.attachmentInfo?.typeUti) {
       case ANAttachment.Hashtag:
       case ANAttachment.Mention:
-        row = await this.importer.database
-          .prepare(
-            `
+        row = await this.importer.database.get`
 					SELECT zalttext FROM ziccloudsyncingobject 
-					WHERE zidentifier = '${attr.attachmentInfo.attachmentIdentifier}'`
-          )
-          .get()
+					WHERE zidentifier = ${attr.attachmentInfo.attachmentIdentifier}`
 
         return row.ZALTTEXT
 
       case ANAttachment.InternalLink:
-        row = await this.importer.database
-          .prepare(
-            `
+        row = await this.importer.database.get`
 					SELECT ztokencontentidentifier FROM ziccloudsyncingobject 
-					WHERE zidentifier = '${attr.attachmentInfo.attachmentIdentifier}'`
-          )
-          .get()
+					WHERE zidentifier = ${attr.attachmentInfo.attachmentIdentifier}`
 
         return await this.getInternalLink(row.ZTOKENCONTENTIDENTIFIER)
 
       case ANAttachment.Table:
-        row = await this.importer.database
-          .prepare(
-            `
+        row = await this.importer.database.get`
 					SELECT hex(zmergeabledata1) as zhexdata FROM ziccloudsyncingobject 
-					WHERE zidentifier = '${attr.attachmentInfo.attachmentIdentifier}'`
-          )
-          .get()
+					WHERE zidentifier = ${attr.attachmentInfo.attachmentIdentifier}`
 
         converter = this.importer.decodeData(row.zhexdata, TableConverter)
         return await converter.format()
 
       case ANAttachment.UrlCard:
-        row = await this.importer.database
-          .prepare(
-            `
+        row = await this.importer.database`
 					SELECT ztitle, zurlstring FROM ziccloudsyncingobject 
-					WHERE zidentifier = '${attr.attachmentInfo.attachmentIdentifier}'`
-          )
-          .get()
+					WHERE zidentifier = ${attr.attachmentInfo.attachmentIdentifier}`
 
         return `[**${row.ZTITLE}**](${row.ZURLSTRING})`
 
       case ANAttachment.Scan:
-        row = await this.importer.database
-          .prepare(
-            `
+        row = await this.importer.database.get`
 					SELECT hex(zmergeabledata1) as zhexdata FROM ziccloudsyncingobject 
-					WHERE zidentifier = '${attr.attachmentInfo.attachmentIdentifier}'`
-          )
-          .get()
+					WHERE zidentifier = ${attr.attachmentInfo.attachmentIdentifier}`
 
         converter = this.importer.decodeData(row.zhexdata, ScanConverter)
         return await converter.format()
@@ -445,14 +425,10 @@ export class NoteConverter extends ANConverter {
       case ANAttachment.DrawingLegacy:
       case ANAttachment.DrawingLegacy2:
       case ANAttachment.Drawing:
-        row = await this.importer.database
-          .prepare(
-            `
+        row = await this.importer.database.get`
 					SELECT z_pk, zhandwritingsummary 
 					FROM (SELECT *, NULL AS zhandwritingsummary FROM ziccloudsyncingobject) 
-					WHERE zidentifier = '${attr.attachmentInfo.attachmentIdentifier}'`
-          )
-          .get()
+					WHERE zidentifier = ${attr.attachmentInfo.attachmentIdentifier}`
 
         id = row?.Z_PK
         break
@@ -461,13 +437,9 @@ export class NoteConverter extends ANConverter {
       // Hundreds of different utis so not in the enum
       default:
         console.log(`Unknown attachment type: ${attr.attachmentInfo?.typeUti}`)
-        row = await this.importer.database
-          .prepare(
-            `
+        row = await this.importer.database.get`
 					SELECT zmedia FROM ziccloudsyncingobject 
-					WHERE zidentifier = '${attr.attachmentInfo?.attachmentIdentifier}'`
-          )
-          .get()
+					WHERE zidentifier = ${attr.attachmentInfo?.attachmentIdentifier}`
 
         id = row?.ZMEDIA
         break
@@ -503,13 +475,9 @@ export class NoteConverter extends ANConverter {
   async getInternalLink(uri: string, name: string | undefined = undefined): Promise<string> {
     const identifier = uri.match(NOTE_URI)![1]
 
-    const row = await this.importer.database
-      .prepare(
-        `
+    const row = await this.importer.database.get`
 			SELECT z_pk FROM ziccloudsyncingobject 
-			WHERE zidentifier = '${identifier.toUpperCase()}'`
-      )
-      .get()
+			WHERE zidentifier = ${identifier.toUpperCase()}`
 
     let file = await this.importer.resolveNote(row.Z_PK)
     if (!file) return '(unknown file link)'

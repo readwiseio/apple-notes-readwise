@@ -6,7 +6,7 @@ export default defineConfig({
   resolve: {
     alias: {
       '@/lib': path.resolve(__dirname, 'src/main/lib'),
-      '@shared': path.resolve(__dirname, 'src/shared'),
+      '@shared': path.resolve(__dirname, 'src/shared')
     },
   },
   build: {
@@ -14,7 +14,7 @@ export default defineConfig({
       entry: path.resolve(__dirname, 'src/main/index.ts'),
     },
     rollupOptions: {
-      external: ['electron', 'better-sqlite3'],
+      external: ['electron'],
     },
   },
   plugins: [],

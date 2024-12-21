@@ -1,5 +1,5 @@
 import { Root } from 'protobufjs'
-import Database from 'better-sqlite3'
+// import Database from 'better-sqlite3'
 import { BrowserWindow } from 'electron'
 import path from 'path'
 import os from 'os'
@@ -9,15 +9,16 @@ import { descriptor } from '@shared/descriptor'
 import zlib from 'node:zlib'
 import { NOTE_FOLDER_PATH, NOTE_DB } from '@shared/constants'
 import {
-  PrimaryKeyRow,
   Note,
   ANNoteData,
   NoteAccount,
   NoteFolder,
   ANAttachment,
-  ANAccount
+  ANAccount,
+  SQLiteTagSpawned
 } from '@shared/models'
 import { NoteConverter } from './convert-note'
+import SQLiteTag from './sqlite/index.js'
 
 // source: https://github.com/obsidianmd/obsidian-importer/blob/577036ad55fe79c92eeee6f961f8073da26622f5/src/filesystem.ts#L228
 export function splitext(name: string) {
@@ -35,7 +36,7 @@ export function splitext(name: string) {
 
 // Source: https://github.com/obsidianmd/obsidian-importer/blob/577036ad55fe79c92eeee6f961f8073da26622f5/src/formats/apple-notes.ts#L18
 export class AppleNotesExtractor {
-  database: any // TODO: Type this
+  database: SQLiteTagSpawned | null = null
   protobufRoot: Root
   window: BrowserWindow
 
@@ -58,35 +59,45 @@ export class AppleNotesExtractor {
 
   async init(folder: string): Promise<void> {
     console.log('MAIN: Initializing Apple Notes Extractor...')
-    this.database = await this.getNotesDatabase()
+    console.log(`MAIN: Getting notes database from ${folder}...`)
+    this.database = await this.getNotesDatabase() as SQLiteTagSpawned
+    if (!this.database) return
     console.log('MAIN: Database loaded...')
 
     console.log('MAIN: Getting primary keys...')
-    const rows = this.database
-      .prepare('SELECT Z_ENT as z_ent, Z_NAME as z_name FROM z_primarykey')
-      .all()
-    this.keys = Object.fromEntries(rows.map((r: PrimaryKeyRow) => [r.z_name, r.z_ent]))
+    this.keys = Object.fromEntries(
+      (await this.database.all`SELECT z_ent, z_name FROM z_primarykey`).map((k) => [
+        k.Z_NAME,
+        k.Z_ENT
+      ])
+    )
 
     console.log('MAIN: Getting note account...')
-    const noteAccount = this.database
-      .prepare(
-        `SELECT Z_PK as z_pk FROM ziccloudsyncingobject WHERE z_ent = ${this.keys.ICAccount}`
-      )
-      .get() as NoteAccount
-    await this.resolveAccount(noteAccount.z_pk)
-    this.accountID = noteAccount.z_pk
+    const noteAccount = Object.fromEntries(
+      (
+        await this.database
+          .all`SELECT Z_PK as z_pk FROM ziccloudsyncingobject WHERE z_ent = ${this.keys.ICAccount}`
+      ).map((k) => [k.Z_PK])
+    )
+    console.log('MAIN: noteAccount: ', noteAccount)
 
     console.log('MAIN: Getting note folder...')
-    this.folder = this.database
-      .prepare(
-        `SELECT Z_PK as z_pk, ZTITLE2 as ztitle2 FROM ziccloudsyncingobject WHERE z_ent = ${this.keys.ICFolder} AND ztitle2 = '${folder}'`
-      )
-      .get() as NoteFolder
+    this.folder = Object.fromEntries(
+      (
+        await this.database
+          .all`SELECT Z_PK as z_pk, ZTITLE2 as ztitle2 FROM ziccloudsyncingobject WHERE z_ent = ${this.keys.ICFolder} AND ztitle2 = ${folder}`
+      ).map((k) => [k.Z_PK, k.ZTITLE2])
+    )
+    await this.resolveAccount(noteAccount[0])
   }
 
-  async getNotesDatabase(): Promise<any> {
+  async getNotesDatabase(): Promise<SQLiteTagSpawned | null> {
     console.log('MAIN: Getting notes database...')
     const dataPath = path.join(os.homedir(), NOTE_FOLDER_PATH)
+    if (!fs.existsSync(dataPath)) {
+      console.error('MAIN: Apple Notes data path not found...')
+      return null
+    }
 
     const originalDB = path.join(dataPath, NOTE_DB)
     const cloneDB = path.join(os.tmpdir(), NOTE_DB)
@@ -96,32 +107,33 @@ export class AppleNotesExtractor {
     await fsPromises.copyFile(originalDB + '-shm', cloneDB + '-shm')
     await fsPromises.copyFile(originalDB + '-wal', cloneDB + '-wal')
 
-    return new Database(cloneDB, { readonly: true })
+    return new SQLiteTag(cloneDB, { readonly: true, persistent: true })
   }
 
   close() {
     console.log('MAIN: Closing Apple Notes Extractor...')
     if (this.database) {
       this.database.close()
-      this.database = null
       console.log('MAIN: Database closed...')
     }
   }
 
   async extractNoteHTML(name: string): Promise<string | void> {
+    if (!this.database) {
+      console.error('MAIN: Database not found...')
+      return
+    }
     console.log('MAIN: Extracting note: ', name)
-    const notes = this.database
-      .prepare(
-        `SELECT
+    const notes = (await this.database.all`
+        SELECT
           Z_PK as z_pk, ZFOLDER as zfolder, ZTITLE1 as ztitle1 FROM ziccloudsyncingobject
         WHERE
           z_ent = ${this.keys.ICNote}
-          AND ztitle1 = '${name}'
+          AND ztitle1 = ${name}
           AND ztitle1 IS NOT NULL
           AND zfolder = ${this.folder.z_pk}
           AND zfolder NOT IN (1)`
-      )
-      .all() as Note[]
+    ) as Note[]
 
     // decode the protobuf
     const html = await this.resolveNote(notes[0].z_pk)
@@ -131,9 +143,12 @@ export class AppleNotesExtractor {
   }
 
   async resolveNote(id: number): Promise<string | void> {
+    if (!this.database) {
+      console.error('Database not found...')
+      return
+    }
     console.log('Resolving note ID: ', id)
-    const row = this.database
-      .prepare(
+    const row = (await this.database.get
         `SELECT
             nd.z_pk, hex(nd.zdata) as zhexdata, zcso.ztitle1 as ztitle1, zfolder as zfolder,
             zcreationdate1 as zcreationdate1, zcreationdate2 as zcreationdate2, zcreationdate3 as zcreationdate3, 
@@ -147,8 +162,7 @@ export class AppleNotesExtractor {
         WHERE
             zcso.z_pk = nd.znote
             AND zcso.z_pk = ${id}`
-      )
-      .get() as ANNoteData
+      ) as ANNoteData
 
     if (!row) {
       console.error('Note not found: ', id)
@@ -173,15 +187,17 @@ export class AppleNotesExtractor {
   }
 
   async resolveAccount(id: number): Promise<void> {
+    if (!this.database) {
+      console.error('Database not found...')
+      return
+    }
     console.log('Resolving account ID: ', id)
-    const account = await this.database
-      .prepare(
+    const account = (await this.database.get
         `
 			SELECT ZNAME as zname, ZIDENTIFIER as zidentifier FROM ziccloudsyncingobject
 			WHERE z_ent = ${this.keys.ICAccount} AND z_pk = ${id}
 		`
       )
-      .get()
 
     this.account = {
       name: account.zname,
@@ -200,6 +216,11 @@ export class AppleNotesExtractor {
   }
 
   async resolveAttachment(id: number, uti: ANAttachment | string): Promise<any | null> {
+    if (!this.database) {
+      console.error('Database not found...')
+      return null
+    }
+
     console.log('Resolving attachment ID: ', id)
     let sourcePath, outName, outExt, row, file
 
@@ -207,8 +228,7 @@ export class AppleNotesExtractor {
       case ANAttachment.ModifiedScan:
         // A PDF only seems to be generated when you modify the scan :(
         console.log('Modified Scan')
-        row = await this.database
-          .prepare(
+        row = (await this.database.get
             `
   				SELECT
   					zidentifier, zfallbackpdfgeneration, zcreationdate, zmodificationdate, znote
@@ -217,9 +237,7 @@ export class AppleNotesExtractor {
   				WHERE
   					z_ent = ${this.keys.ICAttachment}
   					AND z_pk = ${id}
-  			`
-          )
-          .get()
+  			`)
 
         sourcePath = path.join(
           'FallbackPDFs',
@@ -233,8 +251,7 @@ export class AppleNotesExtractor {
 
       case ANAttachment.Scan:
         console.log('Scan')
-        row = await this.database
-          .prepare(
+        row = await this.database.get
             `
   				SELECT
   					zidentifier, zsizeheight, zsizewidth, zcreationdate, zmodificationdate, znote
@@ -243,8 +260,6 @@ export class AppleNotesExtractor {
   					z_ent = ${this.keys.ICAttachment}
   					AND z_pk = ${id}
   			`
-          )
-          .get()
 
         sourcePath = path.join(
           'Previews',
@@ -256,8 +271,7 @@ export class AppleNotesExtractor {
 
       case ANAttachment.Drawing:
         console.log('Drawing')
-        row = await this.database
-          .prepare(
+        row = await this.database.get
             `
   				SELECT
   					zidentifier, zfallbackimagegeneration, zcreationdate, zmodificationdate,
@@ -268,8 +282,6 @@ export class AppleNotesExtractor {
   					z_ent = ${this.keys.ICAttachment}
   					AND z_pk = ${id}
   			`
-          )
-          .get()
 
         if (row.ZFALLBACKIMAGEGENERATION) {
           // macOS 14/iOS 17 and above
@@ -289,8 +301,7 @@ export class AppleNotesExtractor {
 
       default:
         console.log('Default')
-        row = await this.database
-          .prepare(
+        row = await this.database.get
             `
   				SELECT
   					a.zidentifier, a.zfilename,
@@ -303,8 +314,6 @@ export class AppleNotesExtractor {
   					AND a.z_pk = ${id}
   					AND a.z_pk = b.zmedia
   			`
-          )
-          .get()
 
         sourcePath = path.join('Media', row.ZIDENTIFIER, row.ZGENERATION1 || '', row.ZFILENAME)
         ;[outName, outExt] = splitext(row.ZFILENAME)
