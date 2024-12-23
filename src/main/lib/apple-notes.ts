@@ -55,6 +55,7 @@ export class AppleNotesExtractor {
   noteCount = 0;
   parsedNotes = 0;
   omitFirstLine = false;
+  isICAccount = true; // Assume it's an iCloud account by default, until proven otherwise
 
   constructor(mainWindow: BrowserWindow, omitFirstLine = false, useHTMLformat = true) {
     this.protobufRoot = Root.fromJSON(descriptor);
@@ -63,7 +64,7 @@ export class AppleNotesExtractor {
     this.useHTMLformat = useHTMLformat
   }
 
-  async init(folder: string): Promise<void> {
+  async init(folder: string, account: string): Promise<void> {
     console.log("MAIN: Initializing Apple Notes Extractor...");
     console.log(`MAIN: Getting notes database from ${folder}...`);
     this.database = (await this.getNotesDatabase()) as SQLiteTagSpawned;
@@ -89,6 +90,13 @@ export class AppleNotesExtractor {
     )[0];
     console.log("MAIN: Folder: ", this.folder);
     await this.resolveAccount(noteAccount[0].z_pk);
+
+    // determine the account we are working with
+    this.isICAccount = await this.resolveAccountType(account)
+  }
+
+  async getAccountType(): boolean {
+    return this.isICAccount;
   }
 
   async getNotesDatabase(): Promise<SQLiteTagSpawned | null> {
@@ -184,6 +192,20 @@ export class AppleNotesExtractor {
     // Write the file
     fs.writeFileSync(file, html, "utf8");
     return html;
+  }
+
+  async resolveAccountType(name: string): Promise<boolean> {
+    if (!this.database) {
+      console.error("Database not found...");
+      return;
+    }
+    console.log("MAIN: checking account type for", name);
+    const account = await this.database.get`
+      SELECT ZNAME as zname, ZIDENTIFIER as zidentifier FROM ziccloudsyncingobject
+      WHERE z_ent = ${this.keys.ICAccount} AND zname = ${name}
+    `;
+    console.log("Account: ", account);
+    return true ? account !== undefined : false;
   }
 
   async resolveAccount(id: number): Promise<void> {

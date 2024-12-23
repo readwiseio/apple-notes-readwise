@@ -14,7 +14,8 @@ import {
   checkFolderExistsAndIsEmptyInAppleNotes,
   createNewNote,
   createFolderInAppleNotes,
-  appendToExistingNote
+  appendToExistingNote,
+  updateExistingNote
 } from './utils'
 import { baseURL } from '../../shared/constants'
 import { BrowserWindow } from 'electron'
@@ -121,7 +122,14 @@ export class ReadwiseSync {
     const account = this.store.get('currentAccount')
 
     // Initialize the database connection to Apple Notes
-    await this.database.init(notesFolder)
+    await this.database.init(notesFolder, account)
+
+    // check if the account is an iCloud account or note
+    // if it's an iCloud account, we need to use a different method to update notes which 
+    // involves clearing the note and rewriting it with the new content extracted the SQLite database
+    // if false, we can just update the note using AppleScript
+    const isICAccount = await this.database.getAccountType()
+    console.log('MAIN: is iCloud account: ', isICAccount)
 
     if (!notesFolder) {
       console.log('MAIN: no folder selected')
@@ -179,27 +187,29 @@ export class ReadwiseSync {
             if (await checkIfNoteExist(originalName, notesFolder, account)) {
               console.log('Note already exists, updating note with new content')
 
-              // get the note from the apple notes database
-              const existingHTMLContent = await this.database.extractNoteHTML(
-                originalName,
-                notesFolder
-              )
+              if (isICAccount) {
+                // get the note from the apple notes database
+                const existingHTMLContent = await this.database.extractNoteHTML(
+                  originalName,
+                  notesFolder
+                )
 
-              const updatedContent =
-                existingHTMLContent +
-                '<div><br></div>' +
-                contentToSave.replace(/<h1>.*?<\/h1>\s*/s, '') // remove the title from the content
+                const updatedContent =
+                  existingHTMLContent +
+                  '<div><br></div>' +
+                  contentToSave.replace(/<h1>.*?<\/h1>\s*/s, '') // remove the title from the content
 
-              // OLD WAY THAT DID NOT WORK WITH ICLOUD ACCOUNTS
-              // result = await updateExistingNote(contentToSave, originalName, notesFolder, account)
-
-              // NEW WAY THAT WORKS WITH ICLOUD ACCOUNTS (clears the note and rewrites it)
-              result = await appendToExistingNote(
-                updatedContent,
-                originalName,
-                notesFolder,
-                account
-              )
+                // NEW WAY THAT WORKS WITH ICLOUD ACCOUNTS (clears the note and rewrites it)
+                result = await appendToExistingNote(
+                  updatedContent,
+                  originalName,
+                  notesFolder,
+                  account
+                )
+              } else {
+                  // OLD WAY THAT WORKS WITH non ICAccounts
+                  result = await updateExistingNote(contentToSave, originalName, notesFolder, account)
+              }
             } else {
               // create a new note
               console.log("Note doesn't exist, creating new note")
