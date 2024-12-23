@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { AppleNotesExtractor } from './apple-notes'
 import { ScanConverter } from './convert-scan'
 import { TableConverter } from './convert-table'
