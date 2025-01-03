@@ -6,7 +6,7 @@ export default defineConfig({
   resolve: {
     alias: {
       '@/lib': path.resolve(__dirname, 'src/main/lib'),
-      '@shared': path.resolve(__dirname, 'src/shared'),
+      '@shared': path.resolve(__dirname, 'src/shared')
     },
   },
   build: {
