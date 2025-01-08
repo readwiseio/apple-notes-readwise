@@ -87,6 +87,97 @@ export class ReadwiseSync {
     }
   }
 
+  async writeZipEntryToAppleNotes(entry, bookIdsMap, notesFolder, isICAccount, account) {
+    // TODO: fix apple notes filename... it's not the same as the original filename
+      // Found entry: .md
+      // Extracting entry: 46,109,100
+      console.log(`Found entry: ${entry.filename}`)
+
+      // filename examples:
+      // Updated note: Articles/The Sound of Software (Updated December 18, 2024 at 1112 AM)--46885037.md
+      // New note: Articles/The Sound of Software--46885037.md
+      const originalFileName = entry.filename
+      const originalName = originalFileName.split('/')[1].split('--')[0].split('(')[0].trim()
+      const bookId = originalFileName.split('--')[1].split('.')[0].trim()
+      console.log(`Original name: ${originalName}`)
+      console.log(`Book ID: ${bookId}`)
+
+      // track the book
+      bookIdsMap[originalName] = bookIdsMap
+
+      try {
+        if (entry.getData) {
+          // Read the contents of the file
+          const content = await entry.getData(new zip.TextWriter())
+
+          // convert the markdown to html
+          const contentToSave = md.render(content)
+
+          let result = false
+          // check if the note already exists
+          if (await checkIfNoteExist(originalName, notesFolder, account)) {
+            console.log('Note already exists, updating note with new content')
+
+            if (isICAccount) {
+              // get the note from the apple notes database
+              const existingHTMLContent = await this.database.extractNoteHTML(
+                originalName,
+                notesFolder
+              )
+
+              const updatedContent =
+                existingHTMLContent +
+                '<div><br></div>' +
+                contentToSave.replace(/<h1>.*?<\/h1>\s*/s, '') // remove the title from the content
+
+              // NEW WAY THAT WORKS WITH ICLOUD ACCOUNTS (clears the note and rewrites it)
+              result = await appendToExistingNote(
+                updatedContent,
+                originalName,
+                notesFolder,
+                account
+              )
+            } else {
+                // OLD WAY THAT WORKS WITH non ICAccounts
+                result = await updateExistingNote(contentToSave, originalName, notesFolder, account)
+            }
+          } else {
+            // create a new note
+            console.log("Note doesn't exist, creating new note")
+            result = await createNewNote(contentToSave, originalName, notesFolder, account)
+          }
+
+          // track the result of the note creation
+          // if it fails, add the book id to the failed list
+          if (result) {
+            console.log('MAIN: note created successfully')
+            this.mainWindow.webContents.send('syncing-progress')
+          } else {
+            console.log('MAIN: failed to create note')
+            const failedBooks = store.get('failedBooks')
+            const deduplicatedFailedBooks = new Set([...failedBooks, bookId])
+            store.set('failedBooks', Array.from(deduplicatedFailedBooks))
+          }
+        } else {
+          console.log('MAIN: entry has no data')
+          if (bookId) {
+            const failedBooks = store.get('failedBooks')
+            const deduplicatedFailedBooks = new Set([...failedBooks, bookId])
+            store.set('failedBooks', Array.from(deduplicatedFailedBooks))
+          }
+        }
+      } catch (e) {
+        console.log('MAIN: error reading file: ', e)
+        if (bookId) {
+          const failedBooks = store.get('failedBooks')
+          const deduplicatedFailedBooks = new Set([...failedBooks, bookId])
+          store.set('failedBooks', Array.from(deduplicatedFailedBooks))
+        }
+      }
+      await this.removeBooksFromRefresh([bookId])
+      await this.removeBookFromFailedBooks([bookId])
+  }
+
   // https://github.com/readwiseio/obsidian-readwise/blob/56d903b8d1bc18a7816603c300c6b0afa1241d0e/src/main.ts#L285
   async downloadExport(exportID: number): Promise<void> {
     // download archive from this endpoint
@@ -156,96 +247,26 @@ export class ReadwiseSync {
     if (entries.length) {
       // Output entry names
       this.mainWindow.webContents.send('syncing-start', entries.length)
+      const concurrency = 5;
+      const running: Promise<void>[] = [];
+
       for (const entry of entries) {
-        // TODO: fix apple notes filename... it's not the same as the original filename
-        // Found entry: .md
-        // Extracting entry: 46,109,100
-        console.log(`Found entry: ${entry.filename}`)
+        const p = this.writeZipEntryToAppleNotes(entry, bookIdsMap, notesFolder, isICAccount, account);
+        running.push(p);
 
-        // filename examples:
-        // Updated note: Articles/The Sound of Software (Updated December 18, 2024 at 1112 AM)--46885037.md
-        // New note: Articles/The Sound of Software--46885037.md
-        const originalFileName = entry.filename
-        const originalName = originalFileName.split('/')[1].split('--')[0].split('(')[0].trim()
-        const bookId = originalFileName.split('--')[1].split('.')[0].trim()
-        console.log(`Original name: ${originalName}`)
-        console.log(`Book ID: ${bookId}`)
+        // when p finishes, remove it from the array
+        p.then(() => {
+          running.splice(running.indexOf(p), 1);
+        });
 
-        // track the book
-        bookIdsMap[originalName] = bookIdsMap
-
-        try {
-          if (entry.getData) {
-            // Read the contents of the file
-            const content = await entry.getData(new zip.TextWriter())
-
-            // convert the markdown to html
-            const contentToSave = md.render(content)
-
-            let result = false
-            // check if the note already exists
-            if (await checkIfNoteExist(originalName, notesFolder, account)) {
-              console.log('Note already exists, updating note with new content')
-
-              if (isICAccount) {
-                // get the note from the apple notes database
-                const existingHTMLContent = await this.database.extractNoteHTML(
-                  originalName,
-                  notesFolder
-                )
-
-                const updatedContent =
-                  existingHTMLContent +
-                  '<div><br></div>' +
-                  contentToSave.replace(/<h1>.*?<\/h1>\s*/s, '') // remove the title from the content
-
-                // NEW WAY THAT WORKS WITH ICLOUD ACCOUNTS (clears the note and rewrites it)
-                result = await appendToExistingNote(
-                  updatedContent,
-                  originalName,
-                  notesFolder,
-                  account
-                )
-              } else {
-                  // OLD WAY THAT WORKS WITH non ICAccounts
-                  result = await updateExistingNote(contentToSave, originalName, notesFolder, account)
-              }
-            } else {
-              // create a new note
-              console.log("Note doesn't exist, creating new note")
-              result = await createNewNote(contentToSave, originalName, notesFolder, account)
-            }
-
-            // track the result of the note creation
-            // if it fails, add the book id to the failed list
-            if (result) {
-              console.log('MAIN: note created successfully')
-              this.mainWindow.webContents.send('syncing-progress')
-            } else {
-              console.log('MAIN: failed to create note')
-              const failedBooks = store.get('failedBooks')
-              const deduplicatedFailedBooks = new Set([...failedBooks, bookId])
-              store.set('failedBooks', Array.from(deduplicatedFailedBooks))
-            }
-          } else {
-            console.log('MAIN: entry has no data')
-            if (bookId) {
-              const failedBooks = store.get('failedBooks')
-              const deduplicatedFailedBooks = new Set([...failedBooks, bookId])
-              store.set('failedBooks', Array.from(deduplicatedFailedBooks))
-            }
-          }
-        } catch (e) {
-          console.log('MAIN: error reading file: ', e)
-          if (bookId) {
-            const failedBooks = store.get('failedBooks')
-            const deduplicatedFailedBooks = new Set([...failedBooks, bookId])
-            store.set('failedBooks', Array.from(deduplicatedFailedBooks))
-          }
+        // if we already have 5 running, wait for one to finish
+        if (running.length >= concurrency) {
+          await Promise.race(running);
         }
-        await this.removeBooksFromRefresh([bookId])
-        await this.removeBookFromFailedBooks([bookId])
       }
+      
+      // wait for all to finish
+      await Promise.all(running);
     }
     // Close the reader
     await zipReader.close()
