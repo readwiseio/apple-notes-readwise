@@ -85,9 +85,13 @@ export class AppleNotesExtractor {
 
     console.log("MAIN: Getting note folder...");
     this.folder = (
-      await this.database
-        .all`SELECT Z_PK as z_pk, ZTITLE2 as ztitle2 FROM ziccloudsyncingobject WHERE z_ent = ${this.keys.ICFolder} AND ztitle2 = ${folder}`
-    )[0];
+      await this.database.all`
+        SELECT Z_PK as z_pk, ZTITLE2 as ztitle2 
+        FROM ziccloudsyncingobject 
+        WHERE z_ent = ${this.keys.ICFolder} 
+        AND ztitle2 = ${folder} 
+        AND zmarkedfordeletion = 0
+      `)[0]; // zmarkedfordeletion = 0 is to exclude deleted folders
     console.log("MAIN: Folder: ", this.folder);
     await this.resolveAccount(noteAccount[0].z_pk);
 
