@@ -66,6 +66,17 @@ const createWindow = () => {
       click: async () => {
         shell.openExternal('mailto:scottcarvalho71@gmail.com')
       }
+    },
+    {
+      label: 'Disconnect from Readwise',
+      click: async () => {
+        store.set('token', "")
+        store.set('isSyncing', false)
+        store.set('booksToRefresh', [])
+        store.set('failedBooks', [])
+        store.set('booksIDsMap', {})
+        mainWindow.webContents.send('login-status', false)
+      }
     }
   ]
 
