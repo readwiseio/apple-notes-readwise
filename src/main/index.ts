@@ -66,7 +66,19 @@ const createWindow = () => {
       click: async () => {
         shell.openExternal('mailto:scottcarvalho71@gmail.com')
       }
-    }
+    },
+    {
+      label: 'Disconnect from Readwise',
+      click: async () => {
+        // clear all stored data and reset the app
+        await store.set('token', '')
+        await store.set('booksToRefresh', [])
+        await store.set('failedBooks', [])
+        await store.set('isSyncing', false)
+        await store.set('booksIDsMap', {})
+        mainWindow.webContents.send('login-status', false)
+      }
+    },
   ]
 
   const defaultMenu = Menu.getApplicationMenu()
