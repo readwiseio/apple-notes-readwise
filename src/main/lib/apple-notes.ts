@@ -208,7 +208,7 @@ export class AppleNotesExtractor {
       SELECT ZNAME as zname, ZIDENTIFIER as zidentifier FROM ziccloudsyncingobject
       WHERE z_ent = ${this.keys.ICAccount} AND zname = ${name}
     `;
-    console.log("Account: ", account);
+    console.log("Account: ", account ? account.zname : "Non-iCloud Account");
     return true ? account !== undefined : false;
   }
 
