@@ -118,17 +118,22 @@ export class ReadwiseSync {
 
           let result = ""
           // check if the note already exists
-          const note_id = this.bookIdsMap[bookId]
+          const note_id = this.bookIdsMap[bookId] || ""
 
           console.log(`Checking if note exists: (${bookId}) - (${note_id})`)
 
-          if (await checkIfNoteExist(note_id, notesFolder, account)) {
+          if (note_id && await checkIfNoteExist(note_id, notesFolder, account)) {
             console.log(`MAIN: Note already exists, updating note: ${originalName} - (${bookId})`)
 
-            if (isICAccount) {
-              // get the note from the apple notes database
+            if (isICAccount) {              
+              // the primary key can be found at the end of the id return from AppleScript
+              // Ex. x-coredata://E5AB9D06-5845-4AC6-A4A4-DBB2EC160D74/ICNote/p235619
+              // The primary key is 235619
+              const note_pk = note_id.split('p')[1]
+
+              // get the note's body from the apple notes database
               const existingHTMLContent = await this.database.extractNoteHTML(
-                originalName,
+                note_pk,
                 notesFolder
               )
 
@@ -148,13 +153,13 @@ export class ReadwiseSync {
               // NEW WAY THAT WORKS WITH ICLOUD ACCOUNTS (clears the note and rewrites it)
               result = await appendToExistingNote(
                 updatedContent,
-                originalName,
+                note_id,
                 notesFolder,
                 account
               )
             } else {
                 // OLD WAY THAT WORKS WITH non ICAccounts
-                result = await updateExistingNote(contentToSave, originalName, notesFolder, account)
+                result = await updateExistingNote(contentToSave, note_id, notesFolder, account)
             }
           } else {
             // create a new note

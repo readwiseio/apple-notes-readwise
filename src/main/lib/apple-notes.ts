@@ -130,24 +130,24 @@ export class AppleNotesExtractor {
     }
   }
 
-  async extractNoteHTML(name: string): Promise<string | void> {
+  async extractNoteHTML(note_pk: string): Promise<string | void> {
     if (!this.database) {
       console.error("MAIN: Database not found...");
       return;
     }
-    console.log("MAIN: Extracting note: ", name);
+    console.log("MAIN: Note Primary Key: ", note_pk);
 
     const notes = await this.database.get`
     SELECT
           Z_PK as z_pk, ZFOLDER as zfolder, ZTITLE1 as ztitle1 FROM ziccloudsyncingobject
         WHERE
           z_ent = ${this.keys.ICNote}
-          AND ztitle1 = ${name}
+          AND z_pk = ${note_pk}
           AND ztitle1 IS NOT NULL
           AND zfolder = ${this.folder.z_pk}
           AND zfolder NOT IN (1)
     `;
-    console.log("MAIN: Notes: ", notes);
+    console.log("MAIN: Extracting note: ", notes);
 
     // decode the protobuf
     const html = await this.resolveNote(notes.z_pk);
