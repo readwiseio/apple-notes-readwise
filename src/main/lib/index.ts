@@ -118,7 +118,7 @@ export class ReadwiseSync {
 
           let result = ""
           // check if the note already exists
-          const note_id = this.bookIdsMap[bookId] || ""
+          const note_id = this.bookIdsMap[bookId]
 
           console.log(`Checking if note exists: (${bookId}) - (${note_id})`)
 
@@ -129,7 +129,13 @@ export class ReadwiseSync {
               // the primary key can be found at the end of the id return from AppleScript
               // Ex. x-coredata://E5AB9D06-5845-4AC6-A4A4-DBB2EC160D74/ICNote/p235619
               // The primary key is 235619
-              const note_pk = note_id.split('p')[1]
+              const note_pk = note_id.match(/p(\d+)$/)[1];
+
+              if (!note_pk) {
+                console.log('MAIN: failed to extract note primary key')
+                this.failedBooks.push(bookId)
+                return;
+              }
 
               // get the note's body from the apple notes database
               const existingHTMLContent = await this.database.extractNoteHTML(
