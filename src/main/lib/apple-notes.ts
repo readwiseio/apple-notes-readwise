@@ -85,9 +85,13 @@ export class AppleNotesExtractor {
 
     console.log("MAIN: Getting note folder...");
     this.folder = (
-      await this.database
-        .all`SELECT Z_PK as z_pk, ZTITLE2 as ztitle2 FROM ziccloudsyncingobject WHERE z_ent = ${this.keys.ICFolder} AND ztitle2 = ${folder}`
-    )[0];
+      await this.database.all`
+        SELECT Z_PK as z_pk, ZTITLE2 as ztitle2 
+        FROM ziccloudsyncingobject 
+        WHERE z_ent = ${this.keys.ICFolder} 
+        AND ztitle2 = ${folder} 
+        AND zmarkedfordeletion = 0
+      `)[0]; // zmarkedfordeletion = 0 is to exclude deleted folders
     console.log("MAIN: Folder: ", this.folder);
     await this.resolveAccount(noteAccount[0].z_pk);
 
@@ -126,24 +130,24 @@ export class AppleNotesExtractor {
     }
   }
 
-  async extractNoteHTML(name: string): Promise<string | void> {
+  async extractNoteHTML(note_pk: string): Promise<string | void> {
     if (!this.database) {
       console.error("MAIN: Database not found...");
       return;
     }
-    console.log("MAIN: Extracting note: ", name);
+    console.log("MAIN: Note Primary Key: ", note_pk);
 
     const notes = await this.database.get`
     SELECT
           Z_PK as z_pk, ZFOLDER as zfolder, ZTITLE1 as ztitle1 FROM ziccloudsyncingobject
         WHERE
           z_ent = ${this.keys.ICNote}
-          AND ztitle1 = ${name}
+          AND z_pk = ${note_pk}
           AND ztitle1 IS NOT NULL
           AND zfolder = ${this.folder.z_pk}
           AND zfolder NOT IN (1)
     `;
-    console.log("MAIN: Notes: ", notes);
+    console.log("MAIN: Extracting note: ", notes);
 
     // decode the protobuf
     const html = await this.resolveNote(notes.z_pk);
@@ -204,7 +208,7 @@ export class AppleNotesExtractor {
       SELECT ZNAME as zname, ZIDENTIFIER as zidentifier FROM ziccloudsyncingobject
       WHERE z_ent = ${this.keys.ICAccount} AND zname = ${name}
     `;
-    console.log("Account: ", account);
+    console.log("Account: ", account ? account.zname : "Non-iCloud Account");
     return true ? account !== undefined : false;
   }
 

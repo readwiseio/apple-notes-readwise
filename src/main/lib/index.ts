@@ -71,8 +71,14 @@ export async function getUserAuthToken(uuid: string, attempt = 0): Promise<strin
 
 export class ReadwiseSync {
   mainWindow: BrowserWindow
+
   store: any // TODO: type this
   database: any
+
+  bookIdsMap = {}
+
+  booksToRefresh: Array<string> = []
+  failedBooks: Array<string> = []
 
   constructor(mainWindow: BrowserWindow, store: any) {
     this.mainWindow = mainWindow
@@ -87,7 +93,7 @@ export class ReadwiseSync {
     }
   }
 
-  async writeZipEntryToAppleNotes(entry, bookIdsMap, notesFolder, isICAccount, account) {
+  async writeZipEntryToAppleNotes(entry, notesFolder, isICAccount, account) {
     // TODO: fix apple notes filename... it's not the same as the original filename
       // Found entry: .md
       // Extracting entry: 46,109,100
@@ -102,9 +108,6 @@ export class ReadwiseSync {
       console.log(`Original name: ${originalName}`)
       console.log(`Book ID: ${bookId}`)
 
-      // track the book
-      bookIdsMap[originalName] = bookIdsMap
-
       try {
         if (entry.getData) {
           // Read the contents of the file
@@ -113,17 +116,40 @@ export class ReadwiseSync {
           // convert the markdown to html
           const contentToSave = md.render(content)
 
-          let result = false
+          let result = ""
           // check if the note already exists
-          if (await checkIfNoteExist(originalName, notesFolder, account)) {
-            console.log('Note already exists, updating note with new content')
+          const note_id = this.bookIdsMap[bookId]
 
-            if (isICAccount) {
-              // get the note from the apple notes database
+          console.log(`Checking if note exists: (${bookId}) - (${note_id})`)
+
+          if (note_id && await checkIfNoteExist(note_id, notesFolder, account)) {
+            console.log(`MAIN: Note already exists, updating note: ${originalName} - (${bookId})`)
+
+            if (isICAccount) {              
+              // the primary key can be found at the end of the id return from AppleScript
+              // Ex. x-coredata://E5AB9D06-5845-4AC6-A4A4-DBB2EC160D74/ICNote/p235619
+              // The primary key is 235619
+              const note_pk = note_id.match(/p(\d+)$/)[1];
+
+              if (!note_pk) {
+                console.log('MAIN: failed to extract note primary key')
+                this.failedBooks.push(bookId)
+                return;
+              }
+
+              // get the note's body from the apple notes database
               const existingHTMLContent = await this.database.extractNoteHTML(
-                originalName,
+                note_pk,
                 notesFolder
               )
+
+              // if for some reason we can't extract the existing note content, add the book to the failed list
+              if (existingHTMLContent === null) {
+                // this book failed to sync, add it to the failed list
+                console.log(`MAIN: failed to extract existing note content for ${originalName} - (${bookId})`)
+                this.failedBooks.push(bookId)
+                return;
+              }
 
               const updatedContent =
                 existingHTMLContent +
@@ -133,49 +159,48 @@ export class ReadwiseSync {
               // NEW WAY THAT WORKS WITH ICLOUD ACCOUNTS (clears the note and rewrites it)
               result = await appendToExistingNote(
                 updatedContent,
-                originalName,
+                note_id,
                 notesFolder,
                 account
               )
             } else {
                 // OLD WAY THAT WORKS WITH non ICAccounts
-                result = await updateExistingNote(contentToSave, originalName, notesFolder, account)
+                result = await updateExistingNote(contentToSave, note_id, notesFolder, account)
             }
           } else {
             // create a new note
-            console.log("Note doesn't exist, creating new note")
+            console.log(`MAIN: Note does not exist, creating note: ${originalName} - (${bookId})`)
             result = await createNewNote(contentToSave, originalName, notesFolder, account)
           }
 
           // track the result of the note creation
           // if it fails, add the book id to the failed list
           if (result) {
-            console.log('MAIN: note created successfully')
+            console.log(`MAIN: successfully created note: ${originalName} - (${bookId})`);
+            this.bookIdsMap[bookId] = result // track the note id for future updates
             this.mainWindow.webContents.send('syncing-progress')
           } else {
-            console.log('MAIN: failed to create note')
-            const failedBooks = store.get('failedBooks')
-            const deduplicatedFailedBooks = new Set([...failedBooks, bookId])
-            store.set('failedBooks', Array.from(deduplicatedFailedBooks))
+            console.log(`MAIN: failed to create note: ${originalName} - (${bookId})`)
+            this.failedBooks.push(bookId)
+            return;
           }
         } else {
           console.log('MAIN: entry has no data')
           if (bookId) {
-            const failedBooks = store.get('failedBooks')
-            const deduplicatedFailedBooks = new Set([...failedBooks, bookId])
-            store.set('failedBooks', Array.from(deduplicatedFailedBooks))
+            this.failedBooks.push(bookId)
+            return;
           }
         }
       } catch (e) {
         console.log('MAIN: error reading file: ', e)
         if (bookId) {
-          const failedBooks = store.get('failedBooks')
-          const deduplicatedFailedBooks = new Set([...failedBooks, bookId])
-          store.set('failedBooks', Array.from(deduplicatedFailedBooks))
+          this.failedBooks.push(bookId)
+          return;
         }
       }
       await this.removeBooksFromRefresh([bookId])
       await this.removeBookFromFailedBooks([bookId])
+
   }
 
   // https://github.com/readwiseio/obsidian-readwise/blob/56d903b8d1bc18a7816603c300c6b0afa1241d0e/src/main.ts#L285
@@ -242,7 +267,8 @@ export class ReadwiseSync {
       return
     }
 
-    const bookIdsMap = this.store.get('booksIDsMap')
+    this.bookIdsMap = this.store.get('booksIDsMap') || {}
+    this.failedBooks = this.store.get('failedBooks') || []
 
     if (entries.length) {
       // Output entry names
@@ -251,7 +277,7 @@ export class ReadwiseSync {
       const running: Promise<void>[] = [];
 
       for (const entry of entries) {
-        const p = this.writeZipEntryToAppleNotes(entry, bookIdsMap, notesFolder, isICAccount, account);
+        const p = this.writeZipEntryToAppleNotes(entry, notesFolder, isICAccount, account);
         running.push(p);
 
         // when p finishes, remove it from the array
@@ -274,6 +300,11 @@ export class ReadwiseSync {
     // Close the database
     this.database.close()
 
+    // Update the store with the latest bookIdsMap, failedBooks, booksToRefresh
+    this.store.set('booksIDsMap', this.bookIdsMap)
+    this.store.set('failedBooks', this.failedBooks)
+    this.store.set('booksToRefresh', this.booksToRefresh)
+
     // Acknowledge that the sync is completed
     await this.acknowledgeSyncCompleted()
     await this.handleSyncSuccess('Synced', exportID)
@@ -294,22 +325,20 @@ export class ReadwiseSync {
 
     console.log(`MAIN: removing books ids ${bookIds.join(', ')} from refresh list`)
 
-    const booksToRefresh = this.store.get('booksToRefresh')
-    const deduplicatedBooksToRefresh = booksToRefresh.filter(
+    const deduplicatedBooksToRefresh = this.booksToRefresh.filter(
       (bookId: string) => !bookIds.includes(bookId)
     )
-    this.store.set('booksToRefresh', deduplicatedBooksToRefresh)
+    this.booksToRefresh = deduplicatedBooksToRefresh
   }
 
   async removeBookFromFailedBooks(bookIds: Array<string>) {
     if (!bookIds.length) return
 
     console.log(`MAIN: removing books ids ${bookIds.join(', ')} from failed list`)
-    const failedBooks = this.store.get('failedBooks')
-    const deduplicatedFailedBooks = failedBooks.filter(
+    const deduplicatedFailedBooks = this.failedBooks.filter(
       (bookId: string) => !bookIds.includes(bookId)
     )
-    this.store.set('failedBooks', deduplicatedFailedBooks)
+    this.failedBooks = deduplicatedFailedBooks
   }
 
   async acknowledgeSyncCompleted() {
