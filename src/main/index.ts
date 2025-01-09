@@ -66,6 +66,18 @@ const createWindow = () => {
       click: async () => {
         shell.openExternal('mailto:scottcarvalho71@gmail.com')
       }
+    },
+    {
+      label: 'Disconnect from Readwise',
+      click: async () => {
+        store.set('token', '')
+        store.set('booksToRefresh', [])
+        store.set('failedBooks', [])
+        store.set('isSyncing', false)
+        store.set('booksIDsMap', {})
+        store.set('rw-AppleNotesClientId', '')
+        mainWindow.webContents.send('login-status', false)
+      }
     }
   ]
 
