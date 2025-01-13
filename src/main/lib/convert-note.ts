@@ -38,6 +38,7 @@ export class NoteConverter extends ANConverter {
   multiRun = ANMultiRun.None
 
   useHTMLFormat = false
+  breaks = false
 
   private inList = false
   private currentListIsOrdered = false
@@ -48,11 +49,14 @@ export class NoteConverter extends ANConverter {
   constructor(
     importer: AppleNotesExtractor,
     document: ANDocument | ANTableObject,
-    useHTMLFormat = false
+    useHTMLFormat = false,
+    breaks = false
   ) {
     super(importer)
     this.note = document.note
     this.useHTMLFormat = useHTMLFormat
+    this.breaks = breaks
+
   }
 
   parseTokens(): ANFragmentPair[] {
@@ -93,16 +97,12 @@ export class NoteConverter extends ANConverter {
   }
 
   async format(table = false): Promise<string> {
-    console.log('Parsing tokens')
     let fragments = this.parseTokens()
-    console.log('Parsing tokens done')
     let firstLineSkip = !table && this.importer.omitFirstLine && this.note.noteText.includes('\n')
     let converted = ''
 
     for (let j = 0; j < fragments.length; j++) {
       let { attr, fragment } = fragments[j]
-      console.log('Fragment: ', fragment)
-      console.log('Attr: ', attr)
 
       if (firstLineSkip) {
         if (fragment.includes('\n') || attr.attachmentInfo) {
@@ -115,13 +115,30 @@ export class NoteConverter extends ANConverter {
       attr.fragment = fragment
       attr.atLineStart = j == 0 ? true : fragments[j - 1]?.fragment.includes('\n')
 
+      // Check if the previous fragment was a list item
+      // This is used in HTML with breaks so we don't add extra <br> tags between list items
+      const previousFragIsList =
+        j == 0
+          ? false
+          : fragments[j - 1]?.attr.paragraphStyle?.styleType ==
+              ANStyleType.DottedList ||
+            fragments[j - 1]?.attr.paragraphStyle?.styleType ==
+              ANStyleType.DashedList ||
+            fragments[j - 1]?.attr.paragraphStyle?.styleType ==
+              ANStyleType.NumberedList ||
+            fragments[j - 1]?.attr.paragraphStyle?.styleType ==
+              ANStyleType.Checkbox;
+
       converted += this.formatMultiRun(attr)
 
       if (!/\S/.test(attr.fragment) || this.multiRun == ANMultiRun.Monospaced) {
-        console.log('Fragment is whitespace or monospaced')
-        converted += attr.fragment
+        console.log("Fragment is whitespace or monospaced");
+        if (this.useHTMLFormat && this.breaks && !previousFragIsList) {
+          converted += "<br>";
+        } else {
+          converted += attr.fragment;
+        }
       } else if (attr.attachmentInfo) {
-        console.log('Fragment is attachment')
         converted += await this.formatAttachment(attr)
       } else if (
         attr.superscript ||
@@ -130,13 +147,10 @@ export class NoteConverter extends ANConverter {
         attr.font ||
         this.multiRun == ANMultiRun.Alignment
       ) {
-        console.log('Fragment is html attr')
         converted += await this.formatHtmlAttr(attr)
       } else {
-        console.log('Fragment is attr')
         converted += await this.formatAttr(attr)
       }
-      console.log('Converted: ', converted)
     }
 
     if (this.multiRun != ANMultiRun.None) converted += this.formatMultiRun({} as ANAttributeRun)
@@ -151,6 +165,12 @@ export class NoteConverter extends ANConverter {
       converted += '</blockquote>'
       this.inBlockquote = false
     }
+    if (this.useHTMLFormat && this.inParagraph) {
+      converted += "</p>";
+      this.inParagraph = false;
+    }
+
+    console.log('Converted: ', converted)
 
     return converted.trim()
   }
@@ -247,7 +267,18 @@ export class NoteConverter extends ANConverter {
       style += `font-family:${attr.font.fontName};`
     }
 
-    if (attr.font?.pointSize) style += `font-size:${attr.font.pointSize}pt;`
+    if (attr.font?.pointSize) {
+      // for some reason AN protobuf says:
+      // - h1 is pointSize 24
+      // - h2 is pointSize 18
+      // But visually it looks like:
+      // - h1 is 18
+      // - h2 is 14
+      // h3 is just 12 bolded
+      // So we will manually adjust the h1,h2 font size to match the visual appearance
+      if (attr.font?.pointSize === 24) style += `font-size:${18}pt;`
+      if (attr.font?.pointSize === 18) style += `font-size:${14}pt;`
+    }
     if (attr.color) style += `color:${this.convertColor(attr.color)};`
 
     if (attr.link && !NOTE_URI.test(attr.link)) {
@@ -339,7 +370,7 @@ export class NoteConverter extends ANConverter {
         case ANStyleType.NumberedList:
           return `<li>${attr.fragment}</li>`
         default:
-          return `${openBlockquote}<p>${attr.fragment}</p>${closeBlockquote}`
+          return `${openBlockquote}<p>${attr.fragment}${closeBlockquote}`
       }
     } else {
       // Markdown formatting
@@ -454,7 +485,6 @@ export class NoteConverter extends ANConverter {
     }
 
     const attachment = await this.importer.resolveAttachment(id, attr.attachmentInfo!.typeUti)
-    console.log('Attachment: ', attachment)
     // let link = attachment
     // 	? `\n${this.app.fileManager.generateMarkdownLink(attachment, '/')}\n`
     // 	: ` **(error reading attachment)**`;
