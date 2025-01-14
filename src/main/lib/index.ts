@@ -22,8 +22,25 @@ import { BrowserWindow } from 'electron'
 import { AppleNotesExtractor } from './apple-notes'
 
 const md = new MarkdownIt({
-  breaks: true
-})
+  html: true, // Enable HTML tags in source
+});
+
+// Override the image renderer to prepend "file://" to local paths
+md.renderer.rules.image = function (tokens, idx, options, env, self) {
+  const token = tokens[idx];
+
+  // Get src attribute value
+  // @ts-ignore
+  let src = token.attrs[token.attrIndex("src")][1];
+
+  // If the src is a local path, prepend "file://"
+  if (src.startsWith("/")) {
+    // @ts-ignore
+    token.attrs[token.attrIndex("src")][1] = `file://${src}`;
+  }
+
+  return self.renderToken(tokens, idx, options);
+};
 
 export function getAppleNoteClientID(): string {
   let appleNotesClientId = store.get('rw-AppleNotesClientId')
@@ -115,9 +132,10 @@ export class ReadwiseSync {
         const content = await entry.getData(new zip.TextWriter())
         
         // convert the markdown to html
-        let contentToSave = md.render(content)
+        let contentToSaveHTML = md.render(content)
+
         // add a line break after each paragraph and heading tags for coesmetic purposes
-        contentToSave = contentToSave.replace(/<\/p>|<\/h[1-6]>/g, '$&<br>')
+        contentToSaveHTML = contentToSaveHTML.replace(/<\/p>|<\/h[1-6]>|<\/ul>/g, '$&<br>');
 
         let result = ''
         // check if the note already exists in our local config file
@@ -141,12 +159,13 @@ export class ReadwiseSync {
             }
 
             // get the note's body from the apple notes database
-            let existingHTMLContent = await this.database.extractNoteHTML(
+            let existingContentMarkdown = await this.database.extractNoteHTML(
               note_pk,
               notesFolder
             )
+
             // if for some reason we can't extract the existing note content, add the book to the failed list
-            if (existingHTMLContent === null) {
+            if (existingContentMarkdown === null) {
               // this book failed to sync, add it to the failed list
               console.log(
                 `MAIN: failed to extract existing note content for ${originalName} - (${bookId})`
@@ -155,22 +174,25 @@ export class ReadwiseSync {
               return
             }
 
-            let updatedContent =
-              existingHTMLContent + '<div><br></div>' + contentToSave.replace(/<h1>.*?<\/h1>\s*/s, '') // remove the title from the content
+            // remove the top heading from the new content
+            let updatedContent = existingContentMarkdown + '\n\n' + content.replace(/^# .*?\n\s*/s, '');
+
+            // convert the updated markdown to html for saving to Apple Notes
+            let udpatedContentHTML = md.render(updatedContent)
 
             // add a line break after each paragraph and heading tags for coesmetic purposes
-            updatedContent = updatedContent.replace(/<\/p>|<\/h[1-6]>/g, '$&<br>')
+            udpatedContentHTML = udpatedContentHTML.replace(/<\/p>|<\/h[1-6]>|<\/ul>/g, '$&<br>');
 
             // NEW WAY THAT WORKS WITH ICLOUD ACCOUNTS (clears the note and rewrites it)
-            result = await appendToExistingNote(updatedContent, note_id, notesFolder, account)
+            result = await appendToExistingNote(udpatedContentHTML, note_id, notesFolder, account)
           } else {
             // OLD WAY THAT WORKS WITH non ICAccounts
-            result = await updateExistingNote(contentToSave, note_id, notesFolder, account)
+            result = await updateExistingNote(contentToSaveHTML, note_id, notesFolder, account)
           }
         } else {
           // create a new note
           console.log(`MAIN: Note does not exist, creating note: ${originalName} - (${bookId})`)
-          result = await createNewNote(contentToSave, originalName, notesFolder, account)
+          result = await createNewNote(contentToSaveHTML, originalName, notesFolder, account)
         }
 
         // track the result of the note creation
