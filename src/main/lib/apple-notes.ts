@@ -43,7 +43,6 @@ export class AppleNotesExtractor {
 
   database: SQLiteTagSpawned | null = null;
   protobufRoot: Root;
-  useHTMLformat: boolean;
 
   keys: Record<string, number> = {};
   owners: Record<number, number> = {};
@@ -57,11 +56,10 @@ export class AppleNotesExtractor {
   omitFirstLine = false;
   isICAccount = true; // Assume it's an iCloud account by default, until proven otherwise
 
-  constructor(mainWindow: BrowserWindow, omitFirstLine = false, useHTMLformat = true) {
+  constructor(mainWindow: BrowserWindow, omitFirstLine = false) {
     this.protobufRoot = Root.fromJSON(descriptor);
     this.window = mainWindow;
     this.omitFirstLine = omitFirstLine;
-    this.useHTMLformat = useHTMLformat
   }
 
   async init(folder: string, account: string): Promise<void> {

@@ -37,26 +37,11 @@ export class NoteConverter extends ANConverter {
   listIndent = 0
   multiRun = ANMultiRun.None
 
-  useHTMLFormat = false
-  breaks = false
-
-  private inList = false
-  private currentListIsOrdered = false
-  private inBlockquote = false
-
   static protobufType = 'ciofecaforensics.Document'
 
-  constructor(
-    importer: AppleNotesExtractor,
-    document: ANDocument | ANTableObject,
-    useHTMLFormat = false,
-    breaks = false
-  ) {
+  constructor(importer: AppleNotesExtractor, document: ANDocument | ANTableObject) {
     super(importer)
     this.note = document.note
-    this.useHTMLFormat = useHTMLFormat
-    this.breaks = breaks
-
   }
 
   parseTokens(): ANFragmentPair[] {
@@ -97,12 +82,16 @@ export class NoteConverter extends ANConverter {
   }
 
   async format(table = false): Promise<string> {
+    console.log('Parsing tokens')
     let fragments = this.parseTokens()
+    console.log('Parsing tokens done')
     let firstLineSkip = !table && this.importer.omitFirstLine && this.note.noteText.includes('\n')
     let converted = ''
 
     for (let j = 0; j < fragments.length; j++) {
       let { attr, fragment } = fragments[j]
+      console.log('Fragment: ', fragment)
+      console.log('Attr: ', attr)
 
       if (firstLineSkip) {
         if (fragment.includes('\n') || attr.attachmentInfo) {
@@ -115,30 +104,13 @@ export class NoteConverter extends ANConverter {
       attr.fragment = fragment
       attr.atLineStart = j == 0 ? true : fragments[j - 1]?.fragment.includes('\n')
 
-      // Check if the previous fragment was a list item
-      // This is used in HTML with breaks so we don't add extra <br> tags between list items
-      const previousFragIsList =
-        j == 0
-          ? false
-          : fragments[j - 1]?.attr.paragraphStyle?.styleType ==
-              ANStyleType.DottedList ||
-            fragments[j - 1]?.attr.paragraphStyle?.styleType ==
-              ANStyleType.DashedList ||
-            fragments[j - 1]?.attr.paragraphStyle?.styleType ==
-              ANStyleType.NumberedList ||
-            fragments[j - 1]?.attr.paragraphStyle?.styleType ==
-              ANStyleType.Checkbox;
-
       converted += this.formatMultiRun(attr)
 
       if (!/\S/.test(attr.fragment) || this.multiRun == ANMultiRun.Monospaced) {
-        console.log("Fragment is whitespace or monospaced");
-        if (this.useHTMLFormat && this.breaks && !previousFragIsList) {
-          converted += "<br>";
-        } else {
-          converted += attr.fragment;
-        }
+        console.log('Fragment is whitespace or monospaced')
+        converted += attr.fragment
       } else if (attr.attachmentInfo) {
+        console.log('Fragment is attachment')
         converted += await this.formatAttachment(attr)
       } else if (
         attr.superscript ||
@@ -147,30 +119,16 @@ export class NoteConverter extends ANConverter {
         attr.font ||
         this.multiRun == ANMultiRun.Alignment
       ) {
+        console.log('Fragment is html attr')
         converted += await this.formatHtmlAttr(attr)
       } else {
+        console.log('Fragment is attr')
         converted += await this.formatAttr(attr)
       }
     }
 
     if (this.multiRun != ANMultiRun.None) converted += this.formatMultiRun({} as ANAttributeRun)
     if (table) converted.replace('\n', '<br>').replace('|', '&#124;')
-
-    // Close any open HTML tags
-    if (this.useHTMLFormat && this.inList) {
-      converted += this.currentListIsOrdered ? '</ol>' : '</ul>'
-      this.inList = false
-    }
-    if (this.useHTMLFormat && this.inBlockquote) {
-      converted += '</blockquote>'
-      this.inBlockquote = false
-    }
-    if (this.useHTMLFormat && this.inParagraph) {
-      converted += "</p>";
-      this.inParagraph = false;
-    }
-
-    console.log('Converted: ', converted)
 
     return converted.trim()
   }
@@ -186,10 +144,6 @@ export class NoteConverter extends ANConverter {
           (attr.paragraphStyle?.indentAmount == 0 && !LIST_STYLES.includes(styleType!)) ||
           isBlockAttachment(attr)
         ) {
-          if (this.useHTMLFormat && this.inList) {
-            prefix += this.currentListIsOrdered ? '</ol>' : '</ul>'
-            this.inList = false
-          }
           this.multiRun = ANMultiRun.None
         }
         break
@@ -197,40 +151,32 @@ export class NoteConverter extends ANConverter {
       case ANMultiRun.Monospaced:
         if (styleType != ANStyleType.Monospaced) {
           this.multiRun = ANMultiRun.None
-          prefix += this.useHTMLFormat ? '</pre>' : '```\n'
+          prefix += '```\n'
         }
         break
 
       case ANMultiRun.Alignment:
         if (!attr.paragraphStyle?.alignment) {
           this.multiRun = ANMultiRun.None
-          prefix += this.useHTMLFormat ? '</p>' : ''
+          prefix += '</p>\n'
         }
         break
     }
 
+    // Separate since one may end and another start immediately
     if (this.multiRun == ANMultiRun.None) {
       if (styleType == ANStyleType.Monospaced) {
         this.multiRun = ANMultiRun.Monospaced
-        prefix += this.useHTMLFormat ? '<pre>' : '\n```\n'
+        prefix += '\n```\n'
       } else if (LIST_STYLES.includes(styleType as ANStyleType)) {
         this.multiRun = ANMultiRun.List
-        if (this.useHTMLFormat) {
-          this.currentListIsOrdered = styleType == ANStyleType.NumberedList
-          prefix += this.currentListIsOrdered ? '<ol>' : '<ul>'
-          this.inList = true
-        } else {
-          // Markdown lists start on their own line.
-          prefix += '\n'
-        }
+
+        // Apple Notes lets users start a list as indented, so add a initial non-indented bit to those
+        if (attr.paragraphStyle?.indentAmount) prefix += '\n- &nbsp;\n'
       } else if (attr.paragraphStyle?.alignment) {
         this.multiRun = ANMultiRun.Alignment
-        if (this.useHTMLFormat) {
-          const val = this.convertAlign(attr.paragraphStyle.alignment)
-          prefix += `<p style="text-align:${val};margin:0">`
-        } else {
-          // Markdown doesn't handle alignment natively, ignore or use a custom syntax if needed
-        }
+        const val = this.convertAlign(attr?.paragraphStyle?.alignment)
+        prefix += `\n<p style="text-align:${val};margin:0">`
       }
     }
 
@@ -240,8 +186,7 @@ export class NoteConverter extends ANConverter {
   /** Since putting markdown inside inline html tags is currentlyproblematic in Live Preview, this is a separate
 	 parser for those that is activated when HTML-only stuff (eg underline, font size) is needed */
   async formatHtmlAttr(attr: ANAttributeRun): Promise<string> {
-    if (attr.strikethrough)
-      attr.fragment = this.useHTMLFormat ? `<s>${attr.fragment}</s>` : `~~${attr.fragment}~~`
+    if (attr.strikethrough) attr.fragment = `<s>${attr.fragment}</s>`
     if (attr.underlined) attr.fragment = `<u>${attr.fragment}</u>`
 
     if (attr.superscript == ANBaseline.Super) attr.fragment = `<sup>${attr.fragment}</sup>`
@@ -251,23 +196,18 @@ export class NoteConverter extends ANConverter {
 
     switch (attr.fontWeight) {
       case ANFontWeight.Bold:
-        attr.fragment = this.useHTMLFormat ? `<b>${attr.fragment}</b>` : `**${attr.fragment}**`
+        attr.fragment = `<b>${attr.fragment}</b>`
         break
       case ANFontWeight.Italic:
-        attr.fragment = this.useHTMLFormat ? `<i>${attr.fragment}</i>` : `*${attr.fragment}*`
+        attr.fragment = `<i>${attr.fragment}</i>`
         break
       case ANFontWeight.BoldItalic:
-        attr.fragment = this.useHTMLFormat
-          ? `<b><i>${attr.fragment}</i></b>`
-          : `***${attr.fragment}***`
+        attr.fragment = `<b><i>${attr.fragment}</i></b>`
         break
-    }
-
-    if (attr.font?.fontName && attr.font.fontName !== DEFAULT_EMOJI) {
-      style += `font-family:${attr.font.fontName};`
     }
 
     if (attr.font?.pointSize) {
+      console.log('Font size: ', attr.font.pointSize)
       // for some reason AN protobuf says:
       // - h1 is pointSize 24
       // - h2 is pointSize 18
@@ -275,18 +215,20 @@ export class NoteConverter extends ANConverter {
       // - h1 is 18
       // - h2 is 14
       // h3 is just 12 bolded
-      // So we will manually adjust the h1,h2 font size to match the visual appearance
+      // So we will adjust the sizes here to match the visual appearance
       if (attr.font?.pointSize === 24) style += `font-size:${18}pt;`
       if (attr.font?.pointSize === 18) style += `font-size:${14}pt;`
     }
+    if (attr.font?.fontName && attr.font.fontName !== DEFAULT_EMOJI) {
+      style += `font-family:${attr.font.fontName};`
+    }
+
     if (attr.color) style += `color:${this.convertColor(attr.color)};`
 
     if (attr.link && !NOTE_URI.test(attr.link)) {
       if (style) style = ` style="${style}"`
 
-      attr.fragment =
-        `<a href="${attr.link}" rel="noopener" class="external-link"` +
-        ` target="_blank"${style}>${attr.fragment}</a>`
+      attr.fragment = `<a href="${attr.link}">${attr.fragment}</a>`
     } else if (style) {
       if (attr.link) attr.fragment = await this.getInternalLink(attr.link, attr.fragment)
 
@@ -303,20 +245,17 @@ export class NoteConverter extends ANConverter {
   async formatAttr(attr: ANAttributeRun): Promise<string> {
     switch (attr.fontWeight) {
       case ANFontWeight.Bold:
-        attr.fragment = this.useHTMLFormat ? `<b>${attr.fragment}</b>` : `**${attr.fragment}**`
+        attr.fragment = `**${attr.fragment}**`
         break
       case ANFontWeight.Italic:
-        attr.fragment = this.useHTMLFormat ? `<i>${attr.fragment}</i>` : `*${attr.fragment}*`
+        attr.fragment = `*${attr.fragment}*`
         break
       case ANFontWeight.BoldItalic:
-        attr.fragment = this.useHTMLFormat
-          ? `<b><i>${attr.fragment}</i></b>`
-          : `***${attr.fragment}***`
+        attr.fragment = `***${attr.fragment}***`
         break
     }
 
-    if (attr.strikethrough)
-      attr.fragment = this.useHTMLFormat ? `<s>${attr.fragment}</s>` : `~~${attr.fragment}~~`
+    if (attr.strikethrough) attr.fragment = `~~${attr.fragment}~~`
     if (attr.link && attr.link != attr.fragment) {
       if (NOTE_URI.test(attr.link)) {
         attr.fragment = await this.getInternalLink(attr.link, attr.fragment)
@@ -336,79 +275,40 @@ export class NoteConverter extends ANConverter {
     const styleType = attr.paragraphStyle?.styleType
     const isBlockquote = attr.paragraphStyle?.blockquote == 1
 
-    if (this.useHTMLFormat) {
-      // Close a previously opened blockquote if needed
-      if (this.inBlockquote && !isBlockquote) {
-        this.inBlockquote = false
-        return `</blockquote><p>${attr.fragment}</p>`
-      } else if (!this.inBlockquote && isBlockquote) {
-        // start a new blockquote
-        this.inBlockquote = true
-      }
+    let prelude = isBlockquote ? '> ' : ''
+    const indent = '\t'.repeat(attr.paragraphStyle?.indentAmount || 0)
 
-      const openBlockquote = this.inBlockquote && attr.atLineStart ? '<blockquote>' : ''
-      const closeBlockquote = '' // We'll close it when style changes
-
-      switch (styleType) {
-        case ANStyleType.Title:
-          return `${openBlockquote}<h1>${attr.fragment}</h1>${closeBlockquote}`
-        case ANStyleType.Heading:
-          return `${openBlockquote}<h2>${attr.fragment}</h2>${closeBlockquote}`
-        case ANStyleType.Subheading:
-          return `${openBlockquote}<h3>${attr.fragment}</h3>${closeBlockquote}`
-        case ANStyleType.DottedList:
-        case ANStyleType.DashedList:
-        case ANStyleType.Checkbox:
-          // Just list items here since list wrapper handled in formatMultiRun()
-          const box =
-            styleType == ANStyleType.Checkbox
-              ? attr.paragraphStyle!.checklist?.done
-                ? '☑ '
-                : '☐ '
-              : ''
-          return `<li>${box}${attr.fragment}</li>`
-        case ANStyleType.NumberedList:
-          return `<li>${attr.fragment}</li>`
-        default:
-          return `${openBlockquote}<p>${attr.fragment}${closeBlockquote}`
-      }
-    } else {
-      // Markdown formatting
-      let prelude = isBlockquote ? '> ' : ''
-      const indent = '\t'.repeat(attr.paragraphStyle?.indentAmount || 0)
-
-      if (
-        this.listNumber != 0 &&
-        (styleType !== ANStyleType.NumberedList ||
-          this.listIndent !== attr.paragraphStyle?.indentAmount)
-      ) {
-        this.listIndent = attr.paragraphStyle?.indentAmount || 0
-        this.listNumber = 0
-      }
-
-      switch (styleType) {
-        case ANStyleType.Title:
-          return `${prelude}# ${attr.fragment}`
-        case ANStyleType.Heading:
-          return `${prelude}## ${attr.fragment}`
-        case ANStyleType.Subheading:
-          return `${prelude}### ${attr.fragment}`
-        case ANStyleType.DashedList:
-        case ANStyleType.DottedList:
-          return `${prelude}${indent}- ${attr.fragment}`
-        case ANStyleType.NumberedList:
-          this.listNumber++
-          return `${prelude}${indent}${this.listNumber}. ${attr.fragment}`
-        case ANStyleType.Checkbox:
-          const box = attr.paragraphStyle!.checklist?.done ? '[x]' : '[ ]'
-          return `${prelude}${indent}- ${box} ${attr.fragment}`
-      }
-
-      // Not a list but indented in line with one
-      if (this.multiRun == ANMultiRun.List) prelude += indent
-
-      return `${prelude}${attr.fragment}`
+    if (
+      this.listNumber != 0 &&
+      (styleType !== ANStyleType.NumberedList ||
+        this.listIndent !== attr.paragraphStyle?.indentAmount)
+    ) {
+      this.listIndent = attr.paragraphStyle?.indentAmount || 0
+      this.listNumber = 0
     }
+
+    switch (styleType) {
+      case ANStyleType.Title:
+        return `${prelude}# ${attr.fragment}`
+      case ANStyleType.Heading:
+        return `${prelude}## ${attr.fragment}`
+      case ANStyleType.Subheading:
+        return `${prelude}### ${attr.fragment}`
+      case ANStyleType.DashedList:
+      case ANStyleType.DottedList:
+        return `${prelude}${indent}- ${attr.fragment}`
+      case ANStyleType.NumberedList:
+        this.listNumber++
+        return `${prelude}${indent}${this.listNumber}. ${attr.fragment}`
+      case ANStyleType.Checkbox:
+        const box = attr.paragraphStyle!.checklist?.done ? '[x]' : '[ ]'
+        return `${prelude}${indent}- ${box} ${attr.fragment}`
+    }
+
+    // Not a list but indented in line with one
+    if (this.multiRun == ANMultiRun.List) prelude += indent
+
+    return `${prelude}${attr.fragment}`
   }
 
   async formatAttachment(attr: ANAttributeRun): Promise<string> {
@@ -479,22 +379,12 @@ export class NoteConverter extends ANConverter {
 
     if (!id) {
       // Doesn't have an associated file, so unknown
-      return this.useHTMLFormat
-        ? `<span>(unknown attachment: ${attr.attachmentInfo?.typeUti})</span>`
-        : ` **(unknown attachment: ${attr.attachmentInfo?.typeUti})** `
+      return ` **(unknown attachment: ${attr.attachmentInfo?.typeUti})** `
     }
 
     const attachment = await this.importer.resolveAttachment(id, attr.attachmentInfo!.typeUti)
-    // let link = attachment
-    // 	? `\n${this.app.fileManager.generateMarkdownLink(attachment, '/')}\n`
-    // 	: ` **(error reading attachment)**`;
-    let link = attachment
-      ? this.useHTMLFormat
-        ? `<img src='file://${attachment}'>`
-        : `![](file://${attachment})`
-      : this.useHTMLFormat
-      ? `<span>(error reading attachment)</span>`
-      : ` **(error reading attachment)**`
+    console.log('Attachment: ', attachment)
+    let link = attachment ? `![](${encodeURI(attachment)})` : ` **(error reading attachment)**`
 
     if (this.importer.includeHandwriting && row.ZHANDWRITINGSUMMARY) {
       link = `\n> [!Handwriting]-\n> ${row.ZHANDWRITINGSUMMARY.replace('\n', '\n> ')}${link}`
