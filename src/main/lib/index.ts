@@ -19,7 +19,7 @@ import {
 } from './utils'
 import { baseURL } from '../../shared/constants'
 import { BrowserWindow } from 'electron'
-import { AppleNotesExtractor } from './apple-notes'
+import { AppleNotesExtractor } from './parser/apple-notes'
 
 const md = new MarkdownIt({
   html: true, // Enable HTML tags in source

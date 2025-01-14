@@ -1,5 +1,5 @@
 import { Message } from 'protobufjs'
-import { AppleNotesExtractor } from '@/lib/apple-notes'
+import { AppleNotesExtractor } from '@/lib/parser/apple-notes'
 import { BrowserWindow } from 'electron'
 
 // internal types
