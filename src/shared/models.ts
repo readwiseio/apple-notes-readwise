@@ -9,10 +9,6 @@ export interface PrimaryKeyRow {
   z_name: string
 }
 
-// export interface PrimaryKeyMap {
-//   [key: string]: number
-// }
-
 export interface NoteAccount {
   z_pk: number
 }
@@ -40,7 +36,6 @@ export interface ANNoteData {
   }
 
 // Source from: https://github.com/obsidianmd/obsidian-importer/blob/master/src/formats/apple-notes/models.ts
-
 export type SQLiteTagSpawned = {
 	get(...query: any[]): Promise<SQLiteRow>;
 	all(...query: any[]): Promise<SQLiteTable>;
