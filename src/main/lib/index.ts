@@ -1,5 +1,6 @@
 import * as zip from '@zip.js/zip.js'
 import MarkdownIt from 'markdown-it'
+// import fs from 'fs' // DEBUG: for writing files to the output folder
 
 import { store } from '@/lib/store'
 
@@ -22,6 +23,7 @@ import { BrowserWindow } from 'electron'
 import { AppleNotesExtractor } from './parser/apple-notes'
 
 const md = new MarkdownIt({
+  breaks: true, // Convert '\n' in paragraphs into <br>
   html: true, // Enable HTML tags in source
 });
 
@@ -130,12 +132,24 @@ export class ReadwiseSync {
     try {
       if (entry.getData) {
         const content = await entry.getData(new zip.TextWriter())
+
+        // DEBUG: write the markdown file to the output folder
+        // if (!fs.existsSync('output')) {
+        //   fs.mkdirSync('output')
+        // }
+        // fs.writeFileSync(`output/${originalName}.md`, content)
         
         // convert the markdown to html
         let contentToSaveHTML = md.render(content)
 
+        // DEBUG: write the html file to the output folder
+        //fs.writeFileSync(`output/${originalName}.html`, contentToSaveHTML)
+
         // add a line break after each paragraph and heading tags for coesmetic purposes
         contentToSaveHTML = contentToSaveHTML.replace(/<\/p>|<\/h[1-6]>|<\/ul>/g, '$&<br>');
+
+        // DEBUG: write the html file to the output folder
+        // fs.writeFileSync(`output/${originalName}-add-breaks.html`, contentToSaveHTML)
 
         let result = ''
         // check if the note already exists in our local config file
@@ -164,6 +178,9 @@ export class ReadwiseSync {
               notesFolder
             )
 
+            // DEBUG: write the existing note content to the output folder
+            // fs.writeFileSync(`output/${originalName}-existing.md`, existingContentMarkdown)
+
             // if for some reason we can't extract the existing note content, add the book to the failed list
             if (existingContentMarkdown === null) {
               // this book failed to sync, add it to the failed list
@@ -177,11 +194,20 @@ export class ReadwiseSync {
             // remove the top heading from the new content
             let updatedContent = existingContentMarkdown + '\n\n' + content.replace(/^# .*?\n\s*/s, '');
 
+            // DEBUG: write the updated markdown to the output folder
+            // fs.writeFileSync(`output/${originalName}-updated.md`, updatedContent)
+
             // convert the updated markdown to html for saving to Apple Notes
             let udpatedContentHTML = md.render(updatedContent)
 
+            // DEBUG: write the updated html to the output folder
+            // fs.writeFileSync(`output/${originalName}-updated.html`, udpatedContentHTML)
+
             // add a line break after each paragraph and heading tags for coesmetic purposes
             udpatedContentHTML = udpatedContentHTML.replace(/<\/p>|<\/h[1-6]>|<\/ul>/g, '$&<br>');
+
+            // DEBUG: write the updated html to the output folder
+            // fs.writeFileSync(`output/${originalName}-updated-add-breaks.html`, udpatedContentHTML)
 
             // NEW WAY THAT WORKS WITH ICLOUD ACCOUNTS (clears the note and rewrites it)
             result = await appendToExistingNote(udpatedContentHTML, note_id, notesFolder, account)
