@@ -158,7 +158,15 @@ const createWindow = () => {
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
-app.on('ready', createWindow)
+app.on('ready', () => {
+  if (store.get('isSyncing')) {
+    console.log('Previous sync was interrupted. Clearing sync status...')
+    store.set('isSyncing', false) 
+    store.set('currentSyncStatusID', 0)
+  }
+
+  createWindow()
+})
 
 ipcMain.on('login-status', (event: Electron.Event, loggedIn: boolean) => {
   event.preventDefault()
@@ -246,6 +254,16 @@ async function configureScheduledSync(frequency: string) {
   }, milliseconds)
   return frequency
 }
+
+// Before quiting double check if the app is syncing
+// If so, clear the syncing status and set last sync to failed
+app.on('before-quit', () => {
+  if (Boolean(store.get('isSyncing'))) {
+    store.set('isSyncing', false)
+    store.set('lastSyncFailed', true)
+    store.set('currentSyncStatusID', 0)
+  }
+})
 
 // Quit when all windows are closed, except on macOS. There, it's common
 // for applications and their menu bar to stay active until the user quits
