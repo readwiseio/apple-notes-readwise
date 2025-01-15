@@ -718,14 +718,15 @@ export class ReadwiseSync {
         return 'Synced'
       } else {
         console.log(`MAIN: saving book id ${bookIds} to refresh later`)
-        const booksToRefresh = store.get('booksToRefresh')
-        const deduplicatedBookIds = new Set([...booksToRefresh, ...bookIds])
-        this.store.set('booksToRefresh', Array.from(deduplicatedBookIds))
-        return 'Sync failed'
+        const booksToRefresh = this.booksToRefresh
+        booksToRefresh.push(...targetBookIds)
+        this.store.set('booksToRefresh', booksToRefresh)
+        return 'Sync Failed: Failed to refresh books'
       }
     } catch (e) {
       console.log('MAIN: fetch failed in syncBookHighlights: ', e)
-      return 'Sync failed'
+      await this.handleSyncError('Sync failed')
+      return 'Sync Fail: Failed to refresh books'
     }
   }
 }
