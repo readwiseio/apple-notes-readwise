@@ -1,5 +1,6 @@
 import * as zip from '@zip.js/zip.js'
 import MarkdownIt from 'markdown-it'
+// import fs from 'fs' // DEBUG: for writing files to the output folder
 
 import { store } from '@/lib/store'
 
@@ -19,9 +20,29 @@ import {
 } from './utils'
 import { baseURL } from '../../shared/constants'
 import { BrowserWindow } from 'electron'
-import { AppleNotesExtractor } from './apple-notes'
+import { AppleNotesExtractor } from './parser/apple-notes'
 
-const md = new MarkdownIt()
+const md = new MarkdownIt({
+  breaks: true, // Convert '\n' in paragraphs into <br>
+  html: true, // Enable HTML tags in source
+});
+
+// Override the image renderer to prepend "file://" to local paths
+md.renderer.rules.image = function (tokens, idx, options, env, self) {
+  const token = tokens[idx];
+
+  // Get src attribute value
+  // @ts-ignore
+  let src = token.attrs[token.attrIndex("src")][1];
+
+  // If the src is a local path, prepend "file://"
+  if (src.startsWith("/")) {
+    // @ts-ignore
+    token.attrs[token.attrIndex("src")][1] = `file://${src}`;
+  }
+
+  return self.renderToken(tokens, idx, options);
+};
 
 export function getAppleNoteClientID(): string {
   let appleNotesClientId = store.get('rw-AppleNotesClientId')
@@ -95,112 +116,138 @@ export class ReadwiseSync {
 
   async writeZipEntryToAppleNotes(entry, notesFolder, isICAccount, account) {
     // TODO: fix apple notes filename... it's not the same as the original filename
-      // Found entry: .md
-      // Extracting entry: 46,109,100
-      console.log(`Found entry: ${entry.filename}`)
+    // Found entry: .md
+    // Extracting entry: 46,109,100
+    console.log(`Found entry: ${entry.filename}`)
 
-      // filename examples:
-      // Updated note: Articles/The Sound of Software (Updated December 18, 2024 at 1112 AM)--46885037.md
-      // New note: Articles/The Sound of Software--46885037.md
-      const originalFileName = entry.filename
-      const originalName = originalFileName.split('/')[1].split('--')[0].split('(')[0].trim()
-      const bookId = originalFileName.split('--')[1].split('.')[0].trim()
-      console.log(`Original name: ${originalName}`)
-      console.log(`Book ID: ${bookId}`)
+    // filename examples:
+    // Updated note: Articles/The Sound of Software (Updated December 18, 2024 at 1112 AM)--46885037.md
+    // New note: Articles/The Sound of Software--46885037.md
+    const originalFileName = entry.filename
+    const originalName = originalFileName.split('/')[1].split('--')[0].split('(')[0].trim()
+    const bookId = originalFileName.split('--')[1].split('.')[0].trim()
+    console.log(`Original name: ${originalName}`)
+    console.log(`Book ID: ${bookId}`)
 
-      try {
-        if (entry.getData) {
-          // Read the contents of the file
-          const content = await entry.getData(new zip.TextWriter())
+    try {
+      if (entry.getData) {
+        const content = await entry.getData(new zip.TextWriter())
 
-          // convert the markdown to html
-          const contentToSave = md.render(content)
+        // DEBUG: write the markdown file to the output folder
+        // if (!fs.existsSync('output')) {
+        //   fs.mkdirSync('output')
+        // }
+        // fs.writeFileSync(`output/${originalName}.md`, content)
+        
+        // convert the markdown to html
+        let contentToSaveHTML = md.render(content)
 
-          let result = ""
-          // check if the note already exists
-          const note_id = this.bookIdsMap[bookId]
+        // DEBUG: write the html file to the output folder
+        //fs.writeFileSync(`output/${originalName}.html`, contentToSaveHTML)
 
-          console.log(`Checking if note exists: (${bookId}) - (${note_id})`)
+        // add a line break after each paragraph and heading tags for coesmetic purposes
+        contentToSaveHTML = contentToSaveHTML.replace(/<\/p>|<\/h[1-6]>|<\/ul>/g, '$&<br>');
 
-          if (note_id && await checkIfNoteExist(note_id, notesFolder, account)) {
-            console.log(`MAIN: Note already exists, updating note: ${originalName} - (${bookId})`)
+        // DEBUG: write the html file to the output folder
+        // fs.writeFileSync(`output/${originalName}-add-breaks.html`, contentToSaveHTML)
 
-            if (isICAccount) {              
-              // the primary key can be found at the end of the id return from AppleScript
-              // Ex. x-coredata://E5AB9D06-5845-4AC6-A4A4-DBB2EC160D74/ICNote/p235619
-              // The primary key is 235619
-              const note_pk = note_id.match(/p(\d+)$/)[1];
+        let result = ''
+        // check if the note already exists in our local config file
+        const note_id = this.bookIdsMap[bookId]
 
-              if (!note_pk) {
-                console.log('MAIN: failed to extract note primary key')
-                this.failedBooks.push(bookId)
-                return;
-              }
+        console.log(`Checking if note exists: (${bookId}) - (${note_id})`)
 
-              // get the note's body from the apple notes database
-              const existingHTMLContent = await this.database.extractNoteHTML(
-                note_pk,
-                notesFolder
-              )
+        if (note_id && (await checkIfNoteExist(note_id, notesFolder, account))) {
+          console.log(`MAIN: Note already exists, updating note: ${originalName} - (${bookId})`)
 
-              // if for some reason we can't extract the existing note content, add the book to the failed list
-              if (existingHTMLContent === null) {
-                // this book failed to sync, add it to the failed list
-                console.log(`MAIN: failed to extract existing note content for ${originalName} - (${bookId})`)
-                this.failedBooks.push(bookId)
-                return;
-              }
+          if (isICAccount) {
+            // the primary key can be found at the end of the id return from AppleScript
+            // Ex. x-coredata://E5AB9D06-5845-4AC6-A4A4-DBB2EC160D74/ICNote/p235619
+            // The primary key is 235619
+            const note_pk = note_id.match(/p(\d+)$/)[1]
 
-              const updatedContent =
-                existingHTMLContent +
-                '<div><br></div>' +
-                contentToSave.replace(/<h1>.*?<\/h1>\s*/s, '') // remove the title from the content
-
-              // NEW WAY THAT WORKS WITH ICLOUD ACCOUNTS (clears the note and rewrites it)
-              result = await appendToExistingNote(
-                updatedContent,
-                note_id,
-                notesFolder,
-                account
-              )
-            } else {
-                // OLD WAY THAT WORKS WITH non ICAccounts
-                result = await updateExistingNote(contentToSave, note_id, notesFolder, account)
+            if (!note_pk) {
+              console.log('MAIN: failed to extract note primary key')
+              this.failedBooks.push(bookId)
+              return
             }
-          } else {
-            // create a new note
-            console.log(`MAIN: Note does not exist, creating note: ${originalName} - (${bookId})`)
-            result = await createNewNote(contentToSave, originalName, notesFolder, account)
-          }
 
-          // track the result of the note creation
-          // if it fails, add the book id to the failed list
-          if (result) {
-            console.log(`MAIN: successfully created note: ${originalName} - (${bookId})`);
-            this.bookIdsMap[bookId] = result // track the note id for future updates
-            this.mainWindow.webContents.send('syncing-progress')
+            // get the note's body from the apple notes database
+            let existingContentMarkdown = await this.database.extractNoteHTML(
+              note_pk,
+              notesFolder
+            )
+
+            // DEBUG: write the existing note content to the output folder
+            // fs.writeFileSync(`output/${originalName}-existing.md`, existingContentMarkdown)
+
+            // if for some reason we can't extract the existing note content, add the book to the failed list
+            if (existingContentMarkdown === null) {
+              // this book failed to sync, add it to the failed list
+              console.log(
+                `MAIN: failed to extract existing note content for ${originalName} - (${bookId})`
+              )
+              this.failedBooks.push(bookId)
+              return
+            }
+
+            // remove the top heading from the new content
+            let updatedContent = existingContentMarkdown + '\n\n' + content.replace(/^# .*?\n\s*/s, '');
+
+            // DEBUG: write the updated markdown to the output folder
+            // fs.writeFileSync(`output/${originalName}-updated.md`, updatedContent)
+
+            // convert the updated markdown to html for saving to Apple Notes
+            let udpatedContentHTML = md.render(updatedContent)
+
+            // DEBUG: write the updated html to the output folder
+            // fs.writeFileSync(`output/${originalName}-updated.html`, udpatedContentHTML)
+
+            // add a line break after each paragraph and heading tags for coesmetic purposes
+            udpatedContentHTML = udpatedContentHTML.replace(/<\/p>|<\/h[1-6]>|<\/ul>/g, '$&<br>');
+
+            // DEBUG: write the updated html to the output folder
+            // fs.writeFileSync(`output/${originalName}-updated-add-breaks.html`, udpatedContentHTML)
+
+            // NEW WAY THAT WORKS WITH ICLOUD ACCOUNTS (clears the note and rewrites it)
+            result = await appendToExistingNote(udpatedContentHTML, note_id, notesFolder, account)
           } else {
-            console.log(`MAIN: failed to create note: ${originalName} - (${bookId})`)
-            this.failedBooks.push(bookId)
-            return;
+            // OLD WAY THAT WORKS WITH non ICAccounts
+            result = await updateExistingNote(contentToSaveHTML, note_id, notesFolder, account)
           }
         } else {
-          console.log('MAIN: entry has no data')
-          if (bookId) {
-            this.failedBooks.push(bookId)
-            return;
-          }
+          // create a new note
+          console.log(`MAIN: Note does not exist, creating note: ${originalName} - (${bookId})`)
+          result = await createNewNote(contentToSaveHTML, originalName, notesFolder, account)
         }
-      } catch (e) {
-        console.log('MAIN: error reading file: ', e)
+
+        // track the result of the note creation
+        // if it fails, add the book id to the failed list
+        if (result) {
+          console.log(`MAIN: successfully created note: ${originalName} - (${bookId})`)
+          this.bookIdsMap[bookId] = result // track the note id for future updates
+          this.mainWindow.webContents.send('syncing-progress')
+        } else {
+          console.log(`MAIN: failed to create note: ${originalName} - (${bookId})`)
+          this.failedBooks.push(bookId)
+          return
+        }
+      } else {
+        console.log('MAIN: entry has no data')
         if (bookId) {
           this.failedBooks.push(bookId)
-          return;
+          return
         }
       }
-      await this.removeBooksFromRefresh([bookId])
-      await this.removeBookFromFailedBooks([bookId])
-
+    } catch (e) {
+      console.log('MAIN: error reading file: ', e)
+      if (bookId) {
+        this.failedBooks.push(bookId)
+        return
+      }
+    }
+    await this.removeBooksFromRefresh([bookId])
+    await this.removeBookFromFailedBooks([bookId])
   }
 
   // https://github.com/readwiseio/obsidian-readwise/blob/56d903b8d1bc18a7816603c300c6b0afa1241d0e/src/main.ts#L285
@@ -241,7 +288,7 @@ export class ReadwiseSync {
     await this.database.init(notesFolder, account)
 
     // check if the account is an iCloud account or note
-    // if it's an iCloud account, we need to use a different method to update notes which 
+    // if it's an iCloud account, we need to use a different method to update notes which
     // involves clearing the note and rewriting it with the new content extracted the SQLite database
     // if false, we can just update the note using AppleScript
     const isICAccount = await this.database.getAccountType()
@@ -273,26 +320,26 @@ export class ReadwiseSync {
     if (entries.length) {
       // Output entry names
       this.mainWindow.webContents.send('syncing-start', entries.length)
-      const concurrency = 5;
-      const running: Promise<void>[] = [];
+      const concurrency = 5
+      const running: Promise<void>[] = []
 
       for (const entry of entries) {
-        const p = this.writeZipEntryToAppleNotes(entry, notesFolder, isICAccount, account);
-        running.push(p);
+        const p = this.writeZipEntryToAppleNotes(entry, notesFolder, isICAccount, account)
+        running.push(p)
 
         // when p finishes, remove it from the array
         p.then(() => {
-          running.splice(running.indexOf(p), 1);
-        });
+          running.splice(running.indexOf(p), 1)
+        })
 
         // if we already have 5 running, wait for one to finish
         if (running.length >= concurrency) {
-          await Promise.race(running);
+          await Promise.race(running)
         }
       }
-      
+
       // wait for all to finish
-      await Promise.all(running);
+      await Promise.all(running)
     }
     // Close the reader
     await zipReader.close()

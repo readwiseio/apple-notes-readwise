@@ -1,9 +1,10 @@
 import { app, BrowserWindow, ipcMain, Menu, shell } from 'electron'
 import path from 'path'
 import { updateAppleNotesAccounts } from '@/lib/utils'
-import { getAppleNoteClientID, getUserAuthToken, ReadwiseSync } from '@/lib'
+import { getAppleNoteClientID, getUserAuthToken, ReadwiseSync } from '@/lib/sync'
 import { store } from '@/lib/store'
 import { updateElectronApp } from 'update-electron-app'
+import { baseURL } from '@shared/constants'
 
 updateElectronApp()
 
@@ -201,7 +202,7 @@ ipcMain.handle('connect-to-readwise', async (event: Electron.Event) => {
   event.preventDefault()
   const uuid = getAppleNoteClientID()
 
-  shell.openExternal(`https://readwise.io/api_auth?token=${uuid}&service=apple-notes`)
+  shell.openExternal(`${baseURL}/api_auth?token=${uuid}&service=apple-notes`)
 
   const token = await getUserAuthToken(uuid)
   if (token) {
@@ -219,7 +220,7 @@ ipcMain.handle('connect-to-readwise', async (event: Electron.Event) => {
 
 ipcMain.handle('open-custom-format-window', (event: Electron.Event) => {
   event.preventDefault()
-  shell.openExternal(`https://readwise.io/export/apple-notes/preferences`)
+  shell.openExternal(`${baseURL}/export/apple-notes/preferences`)
 })
 
 ipcMain.handle('fetch-apple-notes-accounts', async () => {

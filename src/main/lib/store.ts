@@ -5,7 +5,7 @@ const DEFAULT_SETTINGS: ReadwisePluginSettings = {
   token: '',
   readwiseDir: 'Readwise',
   frequency: '0',
-  triggerOnLoad: true,
+  triggerOnLoad: false,
   isSyncing: false,
   lastSyncFailed: false,
   lastSavedStatusID: 0,

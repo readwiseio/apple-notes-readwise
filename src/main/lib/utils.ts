@@ -263,7 +263,7 @@ export const appendToExistingNote = async (
           set noteTitle to name of noteMatch
           
           -- Append the new content to the existing note
-          set body of noteMatch to noteTitle & "<div><br></div>" & "${cleanContent}"
+          set body of noteMatch to "<h1>" & noteTitle & "</h1><br>" & "${cleanContent}"
 
           -- Return the ID of the updated note
           return id of noteMatch
@@ -283,20 +283,21 @@ export const createNewNote = async (
   folder: string,
   account: string
 ) => {
-  const cleanContent = sanitizeHTML(content) // Sanitize the content for AppleScript
+  const cleanContent = sanitizeHTML(content) // Sanitize the content for AppleScript  
   const appleScript = `
     tell application "Notes"
 
-        set desiredAccountName to "${account}" -- Specify the account name
-        set folderName to "${folder}" -- Use JavaScript string here
-        set noteTitle to "${title}" -- Use JavaScript string here
-        set noteBody to "${cleanContent}" -- Use JavaScript string here
+        -- Specify the desired account and folder
+        set desiredAccountName to "${account}"
+        set folderName to "${folder}"
+        set noteTitle to "${title}"
+        set noteBody to "${cleanContent}"
 
         set noteCreated to ""
 
         -- Create a new note in the specified folder of the desired account
         try            
-            set newNote to make new note at folder folderName of account desiredAccountName with properties {name:noteTitle, body:noteBody}
+            set newNote to make new note at folder folderName of account desiredAccountName with properties {name:"", body:noteBody}
             log "Note '" & noteTitle & "' updated in folder '" & folderName & "' of " & account & " desiredAccountName."
             set noteCreated to id of newNote
         on error
