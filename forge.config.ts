@@ -1,14 +1,13 @@
-import type { ForgeConfig } from '@electron-forge/shared-types';
-import { MakerSquirrel } from '@electron-forge/maker-squirrel';
-import { MakerZIP } from '@electron-forge/maker-zip';
-import { MakerDeb } from '@electron-forge/maker-deb';
-import { MakerRpm } from '@electron-forge/maker-rpm';
-import { VitePlugin } from '@electron-forge/plugin-vite';
-import { FusesPlugin } from '@electron-forge/plugin-fuses';
-import { FuseV1Options, FuseVersion } from '@electron/fuses';
-import * as dotenv from 'dotenv';
+import type { ForgeConfig } from '@electron-forge/shared-types'
+import { MakerSquirrel } from '@electron-forge/maker-squirrel'
+import { MakerDeb } from '@electron-forge/maker-deb'
+import { MakerRpm } from '@electron-forge/maker-rpm'
+import { VitePlugin } from '@electron-forge/plugin-vite'
+import { FusesPlugin } from '@electron-forge/plugin-fuses'
+import { FuseV1Options, FuseVersion } from '@electron/fuses'
+import * as dotenv from 'dotenv'
 
-dotenv.config();
+dotenv.config()
 
 const config: ForgeConfig = {
   packagerConfig: {
@@ -18,25 +17,33 @@ const config: ForgeConfig = {
     osxNotarize: {
       appleId: process.env.APPLE_ID || '',
       appleIdPassword: process.env.APPLE_ID_PASSWORD || '',
-      teamId: process.env.APPLE_TEAM_ID || '',
-    },
+      teamId: process.env.APPLE_TEAM_ID || ''
+    }
   },
   rebuildConfig: {},
-  makers: [new MakerSquirrel({}), new MakerZIP({}, ['darwin']), new MakerRpm({}), new MakerDeb({})],
+  makers: [
+    new MakerSquirrel({}),
+    new MakerRpm({}),
+    new MakerDeb({}),
+    {
+      name: '@electron-forge/maker-dmg',
+      config: { overwrite: true, icon: 'resources/icon_128x128.png' }
+    }
+  ],
   publishers: [
     {
       name: '@electron-forge/publisher-github',
       config: {
         repository: {
           owner: process.env.GITHUB_OWNER || '',
-          name: process.env.GITHUB_REPO || '',
+          name: process.env.GITHUB_REPO || ''
         },
         draft: true,
         prerelease: true,
         generateReleaseNotes: true,
-        authToken: process.env.GITHUB_TOKEN || '',
-      },
-    },
+        authToken: process.env.GITHUB_TOKEN || ''
+      }
+    }
   ],
   plugins: [
     new VitePlugin({
@@ -47,20 +54,20 @@ const config: ForgeConfig = {
           // `entry` is just an alias for `build.lib.entry` in the corresponding file of `config`.
           entry: 'src/main/index.ts',
           config: 'vite.main.config.ts',
-          target: 'main',
+          target: 'main'
         },
         {
           entry: 'src/preload/index.ts',
           config: 'vite.preload.config.ts',
-          target: 'preload',
-        },
+          target: 'preload'
+        }
       ],
       renderer: [
         {
           name: 'main_window',
-          config: 'vite.renderer.config.ts',
-        },
-      ],
+          config: 'vite.renderer.config.ts'
+        }
+      ]
     }),
     // Fuses are used to enable/disable various Electron functionality
     // at package time, before code signing the application
@@ -71,9 +78,9 @@ const config: ForgeConfig = {
       [FuseV1Options.EnableNodeOptionsEnvironmentVariable]: false,
       [FuseV1Options.EnableNodeCliInspectArguments]: false,
       [FuseV1Options.EnableEmbeddedAsarIntegrityValidation]: true,
-      [FuseV1Options.OnlyLoadAppFromAsar]: true,
-    }),
-  ],
-};
+      [FuseV1Options.OnlyLoadAppFromAsar]: true
+    })
+  ]
+}
 
-export default config;
+export default config
