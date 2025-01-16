@@ -1,7 +1,7 @@
 import { app, BrowserWindow, ipcMain, Menu, shell } from 'electron'
 import path from 'path'
 import { updateAppleNotesAccounts } from '@/lib/utils'
-import { getAppleNoteClientID, getUserAuthToken, ReadwiseSync } from '@/lib'
+import { getAppleNoteClientID, getUserAuthToken, ReadwiseSync } from '@/lib/sync'
 import { store } from '@/lib/store'
 import { updateElectronApp } from 'update-electron-app'
 import { baseURL } from '@shared/constants'
