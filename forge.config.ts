@@ -18,6 +18,10 @@ const config: ForgeConfig = {
       appleId: process.env.APPLE_ID || '',
       appleIdPassword: process.env.APPLE_ID_PASSWORD || '',
       teamId: process.env.APPLE_TEAM_ID || ''
+    },
+    extendInfo: {
+      "NSAppleEventsUsageDescription": "This app requires permission to access and interact with Apple Notes.",
+      "NSSystemAdministrationUsageDescription": "This app requires full disk access to read and process your notes securely."
     }
   },
   rebuildConfig: {},
