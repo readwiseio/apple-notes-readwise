@@ -1,7 +1,7 @@
 {
   "name": "apple-notes-readwise",
   "productName": "Readwise to Apple Notes",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "description": "Export Readwise highlights to Apple Notes",
   "main": ".vite/build/index.js",
   "repository": {
