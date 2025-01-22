@@ -1,26 +1,27 @@
-import * as zip from '@zip.js/zip.js'
-import MarkdownIt from 'markdown-it'
 // import fs from 'fs' // DEBUG: for writing files to the output folder
-
 import { store } from '@/lib/store'
+import * as zip from '@zip.js/zip.js'
+import { BrowserWindow } from 'electron'
+import Store from 'electron-store'
+import MarkdownIt from 'markdown-it'
+import { baseURL } from '../../shared/constants'
 
 import {
   ExportRequestResponse,
   ExportStatusResponse,
-  ReadwiseAuthResponse
+  ReadwiseAuthResponse,
+  ReadwisePluginSettings
 } from '../../shared/types'
+import { AppleNotesExtractor } from './parser/apple-notes'
 import {
-  checkIfNoteExist,
-  checkFolderExistsInAppleNotes,
-  checkFolderExistsAndIsEmptyInAppleNotes,
-  createNewNote,
-  createFolderInAppleNotes,
   appendToExistingNote,
+  checkFolderExistsAndIsEmptyInAppleNotes,
+  checkFolderExistsInAppleNotes,
+  checkIfNoteExist,
+  createFolderInAppleNotes,
+  createNewNote,
   updateExistingNote
 } from './utils'
-import { baseURL } from '../../shared/constants'
-import { BrowserWindow } from 'electron'
-import { AppleNotesExtractor } from './parser/apple-notes'
 
 const md = new MarkdownIt({
   breaks: true, // Convert '\n' in paragraphs into <br>
@@ -93,8 +94,8 @@ export async function getUserAuthToken(uuid: string, attempt = 0): Promise<strin
 export class ReadwiseSync {
   mainWindow: BrowserWindow
 
-  store: any // TODO: type this
-  database: any
+  store: Store<ReadwisePluginSettings>
+  database: AppleNotesExtractor
 
   bookIdsMap = {}
 
@@ -104,7 +105,7 @@ export class ReadwiseSync {
   constructor(mainWindow: BrowserWindow, store: any) {
     this.mainWindow = mainWindow
     this.store = store
-    this.database = new AppleNotesExtractor(mainWindow, true)
+    this.database = new AppleNotesExtractor(mainWindow, true, this.store)
   }
 
   getAuthHeaders() {
@@ -174,8 +175,7 @@ export class ReadwiseSync {
 
             // get the note's body from the apple notes database
             let existingContentMarkdown = await this.database.extractNoteHTML(
-              note_pk,
-              notesFolder
+              note_pk
             )
 
             // DEBUG: write the existing note content to the output folder

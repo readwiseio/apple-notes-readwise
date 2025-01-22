@@ -1,5 +1,6 @@
 // @ts-nocheck
-import { BrowserWindow } from "electron";
+import { BrowserWindow, dialog } from "electron";
+import Store from 'electron-store'
 import protobufjs from "protobufjs";
 import path from "node:path";
 import os from "node:os";
@@ -17,6 +18,7 @@ import {
   ANAccount,
   SQLiteTagSpawned,
 } from "@shared/models";
+import type { ReadwisePluginSettings } from '../../../shared/types'
 import { NoteConverter } from "./convert-note";
 // @ts-ignore
 import SQLiteTag from "./sqlite/index.js";
@@ -40,6 +42,7 @@ export function splitext(name: string) {
 // Source: https://github.com/obsidianmd/obsidian-importer/blob/577036ad55fe79c92eeee6f961f8073da26622f5/src/formats/apple-notes.ts#L18
 export class AppleNotesExtractor {
   window: BrowserWindow;
+  store: Store<ReadwisePluginSettings>;
 
   database: SQLiteTagSpawned | null = null;
   protobufRoot: Root;
@@ -56,10 +59,15 @@ export class AppleNotesExtractor {
   omitFirstLine = false;
   isICAccount = true; // Assume it's an iCloud account by default, until proven otherwise
 
-  constructor(mainWindow: BrowserWindow, omitFirstLine = false) {
+  constructor(
+    mainWindow: Electron.CrossProcessExports.BrowserWindow,
+    omitFirstLine = false,
+    store: Store<ReadwisePluginSettings>,
+  ) {
     this.protobufRoot = Root.fromJSON(descriptor);
     this.window = mainWindow;
     this.omitFirstLine = omitFirstLine;
+    this.store = store;
   }
 
   async init(folder: string, account: string): Promise<void> {
@@ -103,7 +111,38 @@ export class AppleNotesExtractor {
 
   async getNotesDatabase(): Promise<SQLiteTagSpawned | null> {
     console.log("MAIN: Getting notes database...");
-    const dataPath = path.join(os.homedir(), NOTE_FOLDER_PATH)
+    const dataPath = path.join(os.homedir(), NOTE_FOLDER_PATH);
+    const hasPermission = this.store.get('hasAppleNotesFileSystemPermission');
+    if (hasPermission) {
+      this.window.webContents.send('toast:show', {
+        variant: 'default',
+        message: 'Already have permission, writing to Apple Notes.'
+      });
+    } else {
+      this.window.webContents.send('toast:show', {
+        variant: 'default',
+        message: 'Asking for permission for Apple Notes folder.'
+      });
+      const names = dialog.showOpenDialogSync({
+        defaultPath: dataPath,
+        properties: ['openDirectory'],
+        //see https://developer.apple.com/videos/play/wwdc2019/701/
+        message: 'Select the "group.com.apple.notes" folder to allow Readwise to read Apple Notes data.'
+      })
+      if (!names?.includes(dataPath)) {
+        this.window.webContents.send('toast:show', {
+          variant: 'destructive',
+          message: 'Did not obtain permission for the correct folder :('
+        });
+        return null
+      }
+      this.window.webContents.send('toast:show', {
+        variant: 'default',
+        message: 'Got permission, writing to Apple Notes.'
+      });
+      this.store.set('hasAppleNotesFileSystemPermission', true);
+    }
+
     if (!fs.existsSync(dataPath)) {
       console.error('MAIN: Apple Notes data path not found...')
       return null

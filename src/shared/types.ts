@@ -62,4 +62,6 @@ export interface ReadwisePluginSettings {
 
   /** List of accounts available to export to */
   accounts: Array<string>;
+
+  hasAppleNotesFileSystemPermission: boolean;
 }

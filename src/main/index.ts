@@ -111,11 +111,12 @@ const createWindow = () => {
   }
 
   // check if the user is authenticated
-  const tokenExsits = Boolean(store.get('token'))
-  console.log('User is authenticated: ', tokenExsits)
+  const tokenExists = Boolean(store.get('token'))
+  console.log('User is authenticated: ', tokenExists)
+
   mainWindow.webContents.once('did-finish-load', () => {
-    mainWindow.webContents.send('login-status', tokenExsits)
-    if (tokenExsits) {
+    mainWindow.webContents.send('login-status', tokenExists)
+    if (tokenExists) {
       // Configure scheduled sync
       const syncFrequency = store.get('frequency') || '0' // default to manual
       configureScheduledSync(syncFrequency)
