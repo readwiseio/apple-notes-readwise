@@ -358,10 +358,6 @@ export class ReadwiseSync {
 
     // Send message to the renderer that the sync is completed
     this.mainWindow.webContents.send('syncing-complete')
-    this.mainWindow.webContents.send('toast:show', {
-      variant: 'success',
-      message: 'Sync completed'
-    })
 
     console.log('MAIN: Synced!', exportID)
     console.log('MAIN: completed sync')
@@ -430,17 +426,9 @@ export class ReadwiseSync {
             console.log(`Exporting Readwise data (${data.booksExported} / ${data.totalBooks}) ...`)
             this.mainWindow.webContents.send('export-pending', false)
             this.mainWindow.webContents.send('export-progress', data)
-            this.mainWindow.webContents.send('toast:show', {
-              variant: 'default',
-              message: `Exporting Readwise data (${data.booksExported} / ${data.totalBooks}`
-            })
           } else {
             console.log('Building export...')
             this.mainWindow.webContents.send('export-pending', true)
-            this.mainWindow.webContents.send('toast:show', {
-              variant: 'default',
-              message: 'Building export...'
-            })
           }
 
           // wait 1 second
@@ -449,19 +437,11 @@ export class ReadwiseSync {
           await this.getExportStatus(statusID, token, uuid)
         } else if (SUCCESS_STATUSES.includes(data.taskStatus)) {
           this.mainWindow.webContents.send('export-complete', {})
-          this.mainWindow.webContents.send('toast:show', {
-            variant: 'success',
-            message: 'Export completed'
-          })
           console.log('Export completed')
           await this.downloadExport(statusID)
         } else {
           console.log('MAIN: unknown status in getExportStatus: ', data)
           this.mainWindow.webContents.send('export-error', 'Sync failed')
-          this.mainWindow.webContents.send('toast:show', {
-            variant: 'destructive',
-            message: 'Sync failed'
-          })
           await this.handleSyncError('Sync failed')
           return
         }

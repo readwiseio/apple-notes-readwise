@@ -201,8 +201,6 @@ ipcMain.handle('sync-highlights', async (_event, auto?: boolean) => {
     return
   }
 
-  mainWindow.webContents.send('toast:show', { variant: 'default', message: 'Initiating sync...' })
-
   const readwiseSync = new ReadwiseSync(mainWindow, store)
   return readwiseSync.syncHighlights(undefined, auto)
 })

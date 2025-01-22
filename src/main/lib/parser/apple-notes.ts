@@ -60,7 +60,7 @@ export class AppleNotesExtractor {
   isICAccount = true; // Assume it's an iCloud account by default, until proven otherwise
 
   constructor(
-    mainWindow: Electron.CrossProcessExports.BrowserWindow,
+    mainWindow: BrowserWindow,
     omitFirstLine = false,
     store: Store<ReadwisePluginSettings>,
   ) {

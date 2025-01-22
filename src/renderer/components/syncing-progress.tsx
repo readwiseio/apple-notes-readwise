@@ -1,5 +1,4 @@
-import * as React from 'react'
-import { IpcMainEvent } from 'electron'
+import React, { useEffect, useState } from 'react'
 import {
   Card,
   CardHeader,
@@ -8,20 +7,23 @@ import {
   CardContent,
   CardFooter
 } from '../components/ui/card'
+import { useToast } from '../hooks/use-toast'
 import { ExportStatusResponse } from '../../shared/types'
 
 export function SyncingProgress({ onIsSyncing }: { onIsSyncing: (isSyncing: boolean) => void }) {
-  const [booksExported, setBooksExported] = React.useState(0)
-  const [totalBooks, setTotalBooks] = React.useState(0)
-  const [bookSynced, setBookSynced] = React.useState(0)
-  const [totalBooksToSync, setTotalBooksToSync] = React.useState(0)
-  const [error, setError] = React.useState('')
-  const [isPending, setIsPending] = React.useState(false)
-  const [complete, setComplete] = React.useState(false)
-  const [isStarting, setIsStarting] = React.useState(true)
-  const [isSyncing, setIsSyncing] = React.useState(false)
+  const { toast } = useToast()
 
-  React.useEffect(() => {
+  const [booksExported, setBooksExported] = useState(0)
+  const [totalBooks, setTotalBooks] = useState(0)
+  const [bookSynced, setBookSynced] = useState(0)
+  const [totalBooksToSync, setTotalBooksToSync] = useState(0)
+  const [error, setError] = useState('')
+  const [isPending, setIsPending] = useState(false)
+  const [complete, setComplete] = useState(false)
+  const [isStarting, setIsStarting] = useState(true)
+  const [isSyncing, setIsSyncing] = useState(false)
+
+  useEffect(() => {
     const handleExportProgress = (_, data: ExportStatusResponse) => {
       console.log('Export progress', data.booksExported)
       setBooksExported(data.booksExported)
@@ -84,6 +86,24 @@ export function SyncingProgress({ onIsSyncing }: { onIsSyncing: (isSyncing: bool
       window.api.removeAllListeners('syncing-complete', handleSyncComplete)
     }
   }, [])
+
+  useEffect(() => {
+      async function handleToastMessages(_event, data) {
+        console.log('', data.message)
+        // if toast already on screen, clear it and show the new one
+        toast({
+          variant: data.variant,
+          description: data.message,
+          duration: 5000
+        })
+      }
+  
+      window.api.on('toast:show', handleToastMessages)
+  
+      return () => {
+        window.api.removeAllListeners('toast:show')
+      }
+    }, [])
 
   return (
     <Card>
