@@ -17,7 +17,8 @@ const DEFAULT_SETTINGS: ReadwisePluginSettings = {
   reimportShowConfirmation: true,
   currentAccount: '',
   defaultAccount: '',
-  accounts: []
+  accounts: [],
+  hasAppleNotesFileSystemPermission: false,
 }
 
 export const store = new Store<ReadwisePluginSettings>({

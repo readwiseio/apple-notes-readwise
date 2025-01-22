@@ -1,26 +1,27 @@
-import * as zip from '@zip.js/zip.js'
-import MarkdownIt from 'markdown-it'
 // import fs from 'fs' // DEBUG: for writing files to the output folder
-
 import { store } from '@/lib/store'
+import * as zip from '@zip.js/zip.js'
+import { BrowserWindow } from 'electron'
+import Store from 'electron-store'
+import MarkdownIt from 'markdown-it'
+import { baseURL } from '../../shared/constants'
 
 import {
   ExportRequestResponse,
   ExportStatusResponse,
-  ReadwiseAuthResponse
+  ReadwiseAuthResponse,
+  ReadwisePluginSettings
 } from '../../shared/types'
+import { AppleNotesExtractor } from './parser/apple-notes'
 import {
-  checkIfNoteExist,
-  checkFolderExistsInAppleNotes,
-  checkFolderExistsAndIsEmptyInAppleNotes,
-  createNewNote,
-  createFolderInAppleNotes,
   appendToExistingNote,
+  checkFolderExistsAndIsEmptyInAppleNotes,
+  checkFolderExistsInAppleNotes,
+  checkIfNoteExist,
+  createFolderInAppleNotes,
+  createNewNote,
   updateExistingNote
 } from './utils'
-import { baseURL } from '../../shared/constants'
-import { BrowserWindow } from 'electron'
-import { AppleNotesExtractor } from './parser/apple-notes'
 
 const md = new MarkdownIt({
   breaks: true, // Convert '\n' in paragraphs into <br>
@@ -93,8 +94,8 @@ export async function getUserAuthToken(uuid: string, attempt = 0): Promise<strin
 export class ReadwiseSync {
   mainWindow: BrowserWindow
 
-  store: any // TODO: type this
-  database: any
+  store: Store<ReadwisePluginSettings>
+  database: AppleNotesExtractor
 
   bookIdsMap = {}
 
@@ -104,7 +105,7 @@ export class ReadwiseSync {
   constructor(mainWindow: BrowserWindow, store: any) {
     this.mainWindow = mainWindow
     this.store = store
-    this.database = new AppleNotesExtractor(mainWindow, true)
+    this.database = new AppleNotesExtractor(mainWindow, true, this.store)
   }
 
   getAuthHeaders() {
@@ -174,8 +175,7 @@ export class ReadwiseSync {
 
             // get the note's body from the apple notes database
             let existingContentMarkdown = await this.database.extractNoteHTML(
-              note_pk,
-              notesFolder
+              note_pk
             )
 
             // DEBUG: write the existing note content to the output folder
@@ -358,10 +358,6 @@ export class ReadwiseSync {
 
     // Send message to the renderer that the sync is completed
     this.mainWindow.webContents.send('syncing-complete')
-    this.mainWindow.webContents.send('toast:show', {
-      variant: 'success',
-      message: 'Sync completed'
-    })
 
     console.log('MAIN: Synced!', exportID)
     console.log('MAIN: completed sync')
@@ -430,17 +426,9 @@ export class ReadwiseSync {
             console.log(`Exporting Readwise data (${data.booksExported} / ${data.totalBooks}) ...`)
             this.mainWindow.webContents.send('export-pending', false)
             this.mainWindow.webContents.send('export-progress', data)
-            this.mainWindow.webContents.send('toast:show', {
-              variant: 'default',
-              message: `Exporting Readwise data (${data.booksExported} / ${data.totalBooks}`
-            })
           } else {
             console.log('Building export...')
             this.mainWindow.webContents.send('export-pending', true)
-            this.mainWindow.webContents.send('toast:show', {
-              variant: 'default',
-              message: 'Building export...'
-            })
           }
 
           // wait 1 second
@@ -449,19 +437,11 @@ export class ReadwiseSync {
           await this.getExportStatus(statusID, token, uuid)
         } else if (SUCCESS_STATUSES.includes(data.taskStatus)) {
           this.mainWindow.webContents.send('export-complete', {})
-          this.mainWindow.webContents.send('toast:show', {
-            variant: 'success',
-            message: 'Export completed'
-          })
           console.log('Export completed')
           await this.downloadExport(statusID)
         } else {
           console.log('MAIN: unknown status in getExportStatus: ', data)
           this.mainWindow.webContents.send('export-error', 'Sync failed')
-          this.mainWindow.webContents.send('toast:show', {
-            variant: 'destructive',
-            message: 'Sync failed'
-          })
           await this.handleSyncError('Sync failed')
           return
         }

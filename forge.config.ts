@@ -13,7 +13,13 @@ const config: ForgeConfig = {
   packagerConfig: {
     asar: true,
     icon: 'resources/icon',
-    osxSign: {},
+    osxSign: {
+      optionsForFile(_filePath: string) {
+        return {
+          entitlements: './entitlements/entitlements.plist',
+        };
+      }
+    },
     osxNotarize: {
       appleId: process.env.APPLE_ID || '',
       appleIdPassword: process.env.APPLE_ID_PASSWORD || '',
