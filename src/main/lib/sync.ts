@@ -436,22 +436,22 @@ export class ReadwiseSync {
           // then keep polling
           await this.getExportStatus(statusID, token, uuid)
         } else if (SUCCESS_STATUSES.includes(data.taskStatus)) {
-          this.mainWindow.webContents.send('export-complete', {})
+          this.mainWindow.webContents.send('export-complete', true)
           console.log('Export completed')
           await this.downloadExport(statusID)
         } else {
           console.log('MAIN: unknown status in getExportStatus: ', data)
-          this.mainWindow.webContents.send('export-error', 'Sync failed')
+          this.mainWindow.webContents.send('export-error', 'Download Export failed')
           await this.handleSyncError('Sync failed')
           return
         }
       } else {
         console.log('MAIN: bad response in getExportStatus: ', response)
-        this.mainWindow.webContents.send('export-error', 'Sync failed')
+        this.mainWindow.webContents.send('export-error', 'Download Export failed')
         await this.handleSyncError(this.getErrorMessageFromResponse(response))
       }
     } catch (e) {
-      this.mainWindow.webContents.send('export-error', 'Sync failed')
+      this.mainWindow.webContents.send('export-error', 'Download Export failed')
       console.log('MAIN: fetch failed in getExportStatus: ', e)
       await this.handleSyncError('Sync failed')
     }
