@@ -1,10 +1,12 @@
-import { app, BrowserWindow, ipcMain, Menu, shell } from 'electron'
 import path from 'path'
-import { updateAppleNotesAccounts } from '@/lib/utils'
-import { getAppleNoteClientID, getUserAuthToken, ReadwiseSync } from '@/lib/sync'
-import { store } from '@/lib/store'
+import os from 'os'
+import fs from 'fs'
+import { app, BrowserWindow, ipcMain, Menu, shell, dialog } from 'electron'
 import { updateElectronApp } from 'update-electron-app'
-import { baseURL } from '@shared/constants'
+import { store } from '@/lib/store'
+import { updateAppleNotesAccounts } from '@/lib/utils'
+import { baseURL, NOTE_FOLDER_PATH } from '@shared/constants'
+import { getAppleNoteClientID, getUserAuthToken, ReadwiseSync } from '@/lib/sync'
 
 updateElectronApp()
 
@@ -14,11 +16,11 @@ const createWindow = () => {
   // Create the browser window.
   mainWindow = new BrowserWindow({
     width: 800,
-    height: 650,
+    height: 700,
     maxWidth: 800,
-    maxHeight: 650,
+    maxHeight: 700,
     minWidth: 800,
-    minHeight: 650,
+    minHeight: 700,
     webPreferences: {
       preload: path.join(__dirname, '../preload/index.js'),
       sandbox: true,
@@ -153,7 +155,7 @@ const createWindow = () => {
   })
 
   // Open the DevTools if the app is in development mode
-  isDev && mainWindow.webContents.openDevTools()
+  // isDev && mainWindow.webContents.openDevTools()
 }
 
 // This method will be called when Electron has finished
@@ -182,13 +184,62 @@ ipcMain.on('electron-store-set', async (_, key, value) => {
   store.set(key, value)
 })
 
-// Testing Apple Notes extraction
-// ipcMain.handle('connect-to-database', async () => {
-//   console.log('Connecting to Apple Notes database...')
-//   const name = 'Normal People'
-//   const appleNoteExtractor = new AppleNotesExtractor(mainWindow, true)
-//   appleNoteExtractor.extractNotesHTML(name, 'Readwise')
-// })
+ipcMain.handle('request-apple-notes-permission', async (_) => {
+  const dataPath = path.join(os.homedir(), NOTE_FOLDER_PATH);
+
+  if (!fs.existsSync(dataPath)) {
+    console.error('MAIN: Apple Notes data path not found...');
+    return false;
+  }
+  
+  const hasPermission = store.get('hasAppleNotesFileSystemPermission');
+  
+  if (hasPermission) {
+    console.log('MAIN: Already have permission for Apple Notes folder.');
+    return true;
+  } else {
+    console.log('MAIN: Requesting permission for Apple Notes folder...');
+  
+    while (true) {
+      // Uncomment and replace with the actual dialog when ready
+      const { filePaths, canceled } = await dialog.showOpenDialog({
+        defaultPath: dataPath,
+        properties: ['openDirectory'],
+        message:
+          'Select the "group.com.apple.notes" folder to allow Readwise to read Apple Notes data.'
+      });
+  
+      console.log('MAIN: Was folder selection canceled?', canceled ? 'Yes' : 'No');
+      console.log('MAIN: Selected folder: ', filePaths);
+  
+      if (canceled) {
+        console.log('MAIN: User canceled folder selection. Asking again...');
+        mainWindow.webContents.send('toast:show', {
+          variant: 'default',
+          message: 'Permission is required to proceed. Please select the correct folder.'
+        });
+        continue; // Retry the loop
+      }
+  
+      if (!filePaths.includes(dataPath)) {
+        console.error('MAIN: Did not obtain permission for the correct folder :(');
+        mainWindow.webContents.send('toast:show', {
+          variant: 'destructive',
+          message: 'Did not obtain permission for the correct folder. Please try again.'
+        });
+        continue; // Retry the loop
+      }
+  
+      console.log('MAIN: Permission granted! 🎉');
+      mainWindow.webContents.send('toast:show', {
+        variant: 'default',
+        message: 'Permission granted! 🎉'
+      });
+      store.set('hasAppleNotesFileSystemPermission', true);
+      return true; // Exit the loop and return success
+    }
+  }
+})
 
 ipcMain.handle('sync-highlights', async (_event, auto?: boolean) => {
   // if sync is already in progress, don't start another one

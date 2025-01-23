@@ -182,7 +182,7 @@ export class ReadwiseSync {
             // fs.writeFileSync(`output/${originalName}-existing.md`, existingContentMarkdown)
 
             // if for some reason we can't extract the existing note content, add the book to the failed list
-            if (existingContentMarkdown === null) {
+            if (!existingContentMarkdown) {
               // this book failed to sync, add it to the failed list
               console.log(
                 `MAIN: failed to extract existing note content for ${originalName} - (${bookId})`
@@ -286,6 +286,14 @@ export class ReadwiseSync {
 
     // Initialize the database connection to Apple Notes
     await this.database.init(notesFolder, account)
+
+    // if the database is not found or the account is not selected, stop the sync
+    if (!this.database.database) {
+      console.log('MAIN: database was not found')
+      await this.handleSyncError('Sync failed')
+      return
+    }
+
 
     // check if the account is an iCloud account or note
     // if it's an iCloud account, we need to use a different method to update notes which
@@ -436,22 +444,22 @@ export class ReadwiseSync {
           // then keep polling
           await this.getExportStatus(statusID, token, uuid)
         } else if (SUCCESS_STATUSES.includes(data.taskStatus)) {
-          this.mainWindow.webContents.send('export-complete', {})
+          this.mainWindow.webContents.send('export-complete', true)
           console.log('Export completed')
           await this.downloadExport(statusID)
         } else {
           console.log('MAIN: unknown status in getExportStatus: ', data)
-          this.mainWindow.webContents.send('export-error', 'Sync failed')
+          this.mainWindow.webContents.send('export-error', 'Download Export failed')
           await this.handleSyncError('Sync failed')
           return
         }
       } else {
         console.log('MAIN: bad response in getExportStatus: ', response)
-        this.mainWindow.webContents.send('export-error', 'Sync failed')
+        this.mainWindow.webContents.send('export-error', 'Download Export failed')
         await this.handleSyncError(this.getErrorMessageFromResponse(response))
       }
     } catch (e) {
-      this.mainWindow.webContents.send('export-error', 'Sync failed')
+      this.mainWindow.webContents.send('export-error', 'Download Export failed')
       console.log('MAIN: fetch failed in getExportStatus: ', e)
       await this.handleSyncError('Sync failed')
     }

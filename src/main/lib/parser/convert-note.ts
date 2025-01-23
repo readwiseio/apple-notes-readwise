@@ -82,16 +82,12 @@ export class NoteConverter extends ANConverter {
   }
 
   async format(table = false): Promise<string> {
-    console.log('Parsing tokens')
     let fragments = this.parseTokens()
-    console.log('Parsing tokens done')
     let firstLineSkip = !table && this.importer.omitFirstLine && this.note.noteText.includes('\n')
     let converted = ''
 
     for (let j = 0; j < fragments.length; j++) {
       let { attr, fragment } = fragments[j]
-      console.log('Fragment: ', fragment)
-      console.log('Attr: ', attr)
 
       if (firstLineSkip) {
         if (fragment.includes('\n') || attr.attachmentInfo) {
@@ -107,10 +103,8 @@ export class NoteConverter extends ANConverter {
       converted += this.formatMultiRun(attr)
 
       if (!/\S/.test(attr.fragment) || this.multiRun == ANMultiRun.Monospaced) {
-        console.log('Fragment is whitespace or monospaced')
         converted += attr.fragment
       } else if (attr.attachmentInfo) {
-        console.log('Fragment is attachment')
         converted += await this.formatAttachment(attr)
       } else if (
         attr.superscript ||
@@ -119,10 +113,8 @@ export class NoteConverter extends ANConverter {
         attr.font ||
         this.multiRun == ANMultiRun.Alignment
       ) {
-        console.log('Fragment is html attr')
         converted += await this.formatHtmlAttr(attr)
       } else {
-        console.log('Fragment is attr')
         converted += await this.formatAttr(attr)
       }
     }
