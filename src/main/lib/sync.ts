@@ -182,7 +182,7 @@ export class ReadwiseSync {
             // fs.writeFileSync(`output/${originalName}-existing.md`, existingContentMarkdown)
 
             // if for some reason we can't extract the existing note content, add the book to the failed list
-            if (existingContentMarkdown === null) {
+            if (!existingContentMarkdown) {
               // this book failed to sync, add it to the failed list
               console.log(
                 `MAIN: failed to extract existing note content for ${originalName} - (${bookId})`
@@ -286,6 +286,14 @@ export class ReadwiseSync {
 
     // Initialize the database connection to Apple Notes
     await this.database.init(notesFolder, account)
+
+    // if the database is not found or the account is not selected, stop the sync
+    if (!this.database.database) {
+      console.log('MAIN: database was not found')
+      await this.handleSyncError('Sync failed')
+      return
+    }
+
 
     // check if the account is an iCloud account or note
     // if it's an iCloud account, we need to use a different method to update notes which
