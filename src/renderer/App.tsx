@@ -1,14 +1,15 @@
 import React, { useState, useEffect } from 'react'
 import { Toaster } from './components/ui/toaster'
-import { LoginCard } from './components/login'
-import { SettingsOptions } from './components/settings-options'
-import { SyncingProgress } from './components/syncing-progress'
+import { LoginCard } from './components/LoginCard'
+import { SettingsOptions } from './components/SettingsOptions'
+import { SyncingProgress } from './components/SyncingProgress'
 import PermissionPage from './components/PermissionPage'
 
 export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [isSyncing, setIsSyncing] = useState(false)
   const [isPermissioned, setIsPermissioned] = useState(false)
+  const [isFirstSync, setIsFirstSync] = useState(true)
 
   const checkLoginStatus = async () => {
     const token = await window.api.getStoreValue('token')
@@ -19,6 +20,12 @@ export default function App() {
     const permission = await window.api.getStoreValue('hasAppleNotesFileSystemPermission')
     console.log("Checking permission status: ", permission)
     setIsPermissioned(Boolean(permission))
+  }
+
+  const checkFirstSync = async () => {
+    const firstSync = await window.api.getStoreValue('firstSync')
+    console.log("Checking first sync status: ", firstSync)
+    setIsFirstSync(Boolean(firstSync))
   }
 
   useEffect(() => {
@@ -56,7 +63,26 @@ export default function App() {
     return () => {
       window.api.removeAllListeners('permission-status')
     }
-  })
+  }, [])
+
+  useEffect(() => {
+    checkFirstSync()
+
+    window.api.on('first-sync-status', (_event, firstSync: boolean) => {
+      console.log("Updating first sync status: ", firstSync)
+      setIsFirstSync(firstSync)
+
+      if (firstSync) {
+        console.log('First sync')
+      } else {
+        console.log('Not first sync')
+      }
+    })
+
+    return () => {
+      window.api.removeAllListeners('first-sync-status')
+    }
+  }, [])
 
   return (
     <div className="grid grid-rows-1 min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
@@ -69,7 +95,7 @@ export default function App() {
               <PermissionPage onIsPermissioned={setIsPermissioned} />
             ) :
             isSyncing ? (
-              <SyncingProgress onIsSyncing={setIsSyncing} />
+              <SyncingProgress onIsSyncing={setIsSyncing} isFirstSync={isFirstSync} />
             ) : (
               <SettingsOptions onIsSyncing={setIsSyncing} />
             )
@@ -78,23 +104,24 @@ export default function App() {
           )}
           <Toaster />
         </div>
-        <footer className="p-8 text-center text-sm text-black">
-          <p>
-            Questions? Please see our{' '}
-            <a
-              className="text-blue-500"
-              href="https://github.com/Scarvy/apple-notes-readwise/wiki/User-Guide"
-              target="_blank"
-            >
-              docs
-            </a>{' '}
-            or email us at{' '}
-            <a className="text-blue-500" href="mailto:hello@readwise.io" target="_blank">
-              hello@readwise.io
-            </a>{' '}
-            🙂
-          </p>
-        </footer>
+        {!isSyncing ? (
+          <footer className="mt-10 text-center text-sm text-black">
+            <p>
+              Questions? Please see our{' '}
+              <a
+                className="text-blue-500"
+                href="https://github.com/Scarvy/apple-notes-readwise/wiki/User-Guide"
+                target="_blank"
+              >
+                docs
+              </a>{' '}
+              or email us at{' '}
+              <a className="text-blue-500" href="mailto:hello@readwise.io" target="_blank">
+                hello@readwise.io
+              </a>{' '}
+              🙂
+            </p>
+          </footer>) : null}
       </main>
     </div>
   )
