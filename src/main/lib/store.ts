@@ -19,6 +19,7 @@ const DEFAULT_SETTINGS: ReadwisePluginSettings = {
   defaultAccount: '',
   accounts: [],
   hasAppleNotesFileSystemPermission: false,
+  firstSync: true
 }
 
 export const store = new Store<ReadwisePluginSettings>({

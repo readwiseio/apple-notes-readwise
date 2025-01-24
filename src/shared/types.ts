@@ -64,4 +64,7 @@ export interface ReadwisePluginSettings {
   accounts: Array<string>;
 
   hasAppleNotesFileSystemPermission: boolean;
+
+  //** First time syncing */
+  firstSync: boolean;
 }
