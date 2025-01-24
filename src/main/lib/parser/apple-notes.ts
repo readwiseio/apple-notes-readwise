@@ -128,15 +128,13 @@ export class AppleNotesExtractor {
 
     const hasPermission = this.store.get('hasAppleNotesFileSystemPermission')
     if (hasPermission) {
-      this.window.webContents.send('toast:show', {
-        variant: 'default',
-        message: 'Already have permission, writing to Apple Notes.'
-      })
+      console.log('MAIN: Already have permission for Apple Notes folder...')
     } else {
       this.window.webContents.send('toast:show', {
         variant: 'default',
         message: 'Asking for permission for Apple Notes folder.'
       })
+      console.log('MAIN: Asking for permission for Apple Notes folder...')  
       const names = dialog.showOpenDialogSync({
         defaultPath: dataPath,
         properties: ['openDirectory'],
@@ -155,7 +153,9 @@ export class AppleNotesExtractor {
         variant: 'default',
         message: 'Got permission, writing to Apple Notes.'
       })
+      console.log('MAIN: Got permission for Apple Notes folder...')
       this.store.set('hasAppleNotesFileSystemPermission', true)
+      console.log('MAIN: Permission set for Apple Notes folder...')
     }
 
     if (!fs.existsSync(dataPath)) {
