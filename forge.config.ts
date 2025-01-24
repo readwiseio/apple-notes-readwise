@@ -1,6 +1,7 @@
 import type { ForgeConfig } from '@electron-forge/shared-types'
 import { MakerSquirrel } from '@electron-forge/maker-squirrel'
 import { MakerDeb } from '@electron-forge/maker-deb'
+import { MakerZIP } from '@electron-forge/maker-zip'
 import { MakerRpm } from '@electron-forge/maker-rpm'
 import { VitePlugin } from '@electron-forge/plugin-vite'
 import { FusesPlugin } from '@electron-forge/plugin-fuses'
@@ -35,6 +36,7 @@ const config: ForgeConfig = {
     new MakerSquirrel({}),
     new MakerRpm({}),
     new MakerDeb({}),
+    new MakerZIP({}),
     {
       name: '@electron-forge/maker-dmg',
       config: { overwrite: true, icon: 'resources/icon_128x128.png' }
