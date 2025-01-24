@@ -155,7 +155,7 @@ const createWindow = () => {
   })
 
   // Open the DevTools if the app is in development mode
-  // isDev && mainWindow.webContents.openDevTools()
+  isDev && mainWindow.webContents.openDevTools()
 }
 
 // This method will be called when Electron has finished
