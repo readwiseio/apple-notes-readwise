@@ -16,8 +16,8 @@ export default function PermissionPage({ onIsPermissioned }) {
   }, [onIsPermissioned])
 
   useEffect(() => {
-    async function handleSyncProgressMessages(_event, data) {
-      console.log('Sync progress', data.message)
+    async function handlePermissionGranted(_event, data) {
+      console.log(data.message)
       // if toast already on screen, clear it and show the new one
       toast({
         variant: data.variant,
@@ -26,7 +26,7 @@ export default function PermissionPage({ onIsPermissioned }) {
       })
     }
 
-    window.api.on('toast:show', handleSyncProgressMessages)
+    window.api.on('toast:show', handlePermissionGranted)
 
     return () => {
       window.api.removeAllListeners('toast:show')
