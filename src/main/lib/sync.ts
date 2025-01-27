@@ -10,7 +10,8 @@ import {
   ExportRequestResponse,
   ExportStatusResponse,
   ReadwiseAuthResponse,
-  ReadwisePluginSettings
+  ReadwisePluginSettings,
+  ReadwiseSyncMessage
 } from '../../shared/types'
 import { AppleNotesExtractor } from './parser/apple-notes'
 import {
@@ -29,6 +30,7 @@ const md = new MarkdownIt({
 });
 
 // Override the image renderer to prepend "file://" to local paths
+// @ts-ignore
 md.renderer.rules.image = function (tokens, idx, options, env, self) {
   const token = tokens[idx];
 
@@ -115,15 +117,7 @@ export class ReadwiseSync {
     }
   }
 
-  async writeZipEntryToAppleNotes(entry, notesFolder, isICAccount, account) {
-    // TODO: fix apple notes filename... it's not the same as the original filename
-    // Found entry: .md
-    // Extracting entry: 46,109,100
-    console.log(`Found entry: ${entry.filename}`)
-
-    // filename examples:
-    // Updated note: Articles/The Sound of Software (Updated December 18, 2024 at 1112 AM)--46885037.md
-    // New note: Articles/The Sound of Software--46885037.md
+  async writeZipEntryToAppleNotes(entry: zip.Entry, notesFolder: string, isICAccount: boolean, account: string) {    
     const originalFileName = entry.filename
     const originalName = originalFileName.split('/')[1].split('--')[0].split('(')[0].trim()
     const bookId = originalFileName.split('--')[1].split('.')[0].trim()
@@ -133,19 +127,17 @@ export class ReadwiseSync {
     try {
       if (entry.getData) {
         const content = await entry.getData(new zip.TextWriter())
-
         // DEBUG: write the markdown file to the output folder
         // if (!fs.existsSync('output')) {
         //   fs.mkdirSync('output')
         // }
+
         // fs.writeFileSync(`output/${originalName}.md`, content)
-        
         // convert the markdown to html
         let contentToSaveHTML = md.render(content)
 
         // DEBUG: write the html file to the output folder
         //fs.writeFileSync(`output/${originalName}.html`, contentToSaveHTML)
-
         // add a line break after each paragraph and heading tags for coesmetic purposes
         contentToSaveHTML = contentToSaveHTML.replace(/<\/p>|<\/h[1-6]>|<\/ul>/g, '$&<br>');
 
@@ -156,7 +148,7 @@ export class ReadwiseSync {
         // check if the note already exists in our local config file
         const note_id = this.bookIdsMap[bookId]
 
-        console.log(`Checking if note exists: (${bookId}) - (${note_id})`)
+        console.log(`Checking if note exists: (${bookId}) - (${note_id ? note_id : 'no note id'})`)
 
         if (note_id && (await checkIfNoteExist(note_id, notesFolder, account))) {
           console.log(`MAIN: Note already exists, updating note: ${originalName} - (${bookId})`)
@@ -172,15 +164,12 @@ export class ReadwiseSync {
               this.failedBooks.push(bookId)
               return
             }
-
             // get the note's body from the apple notes database
             let existingContentMarkdown = await this.database.extractNoteHTML(
               note_pk
             )
-
             // DEBUG: write the existing note content to the output folder
             // fs.writeFileSync(`output/${originalName}-existing.md`, existingContentMarkdown)
-
             // if for some reason we can't extract the existing note content, add the book to the failed list
             if (!existingContentMarkdown) {
               // this book failed to sync, add it to the failed list
@@ -261,11 +250,13 @@ export class ReadwiseSync {
     //   console.log(
     //     `MAIN: Already saved data from export ${exportID}`
     //   );
-    //   await handleSyncSuccess("Synced");
+    //   // Send message to the renderer that the sync is completed
+    //   this.mainWindow.webContents.send("syncing-complete");
+    //   await this.handleSyncSuccess(ReadwiseSyncMessage.ALREADY_SAVED);
     //   return;
     // }
 
-    let response, blob
+    let response: Response | undefined, blob: Blob | undefined
     try {
       response = await fetch(artifactURL, { headers: this.getAuthHeaders() })
     } catch (e) {
@@ -290,11 +281,9 @@ export class ReadwiseSync {
     // if the database is not found or the account is not selected, stop the sync
     if (!this.database.database) {
       console.log('MAIN: database was not found')
-      await this.handleSyncError('Sync failed')
+      await this.handleSyncError(ReadwiseSyncMessage.FAILED)
       return
     }
-
-
     // check if the account is an iCloud account or note
     // if it's an iCloud account, we need to use a different method to update notes which
     // involves clearing the note and rewriting it with the new content extracted the SQLite database
@@ -308,7 +297,7 @@ export class ReadwiseSync {
         variant: 'destructive',
         message: 'No folder selected'
       })
-      await this.handleSyncError('Sync failed')
+      await this.handleSyncError(ReadwiseSyncMessage.FAILED)
       return
     }
 
@@ -318,7 +307,7 @@ export class ReadwiseSync {
         variant: 'destructive',
         message: 'No account selected'
       })
-      await this.handleSyncError('Sync failed')
+      await this.handleSyncError(ReadwiseSyncMessage.FAILED)
       return
     }
 
@@ -362,7 +351,7 @@ export class ReadwiseSync {
 
     // Acknowledge that the sync is completed
     await this.acknowledgeSyncCompleted()
-    await this.handleSyncSuccess('Synced', exportID)
+    await this.handleSyncSuccess(ReadwiseSyncMessage.SYNCED, exportID)
 
     // Send message to the renderer that the sync is completed
     this.mainWindow.webContents.send('syncing-complete')
@@ -431,12 +420,10 @@ export class ReadwiseSync {
 
         if (WAITING_STATUSES.includes(data.taskStatus)) {
           if (data.booksExported) {
-            console.log(`Exporting Readwise data (${data.booksExported} / ${data.totalBooks}) ...`)
-            this.mainWindow.webContents.send('export-pending', false)
+            console.log(`MAIN: Exporting Readwise data (${data.booksExported} / ${data.totalBooks}) ...`)
             this.mainWindow.webContents.send('export-progress', data)
           } else {
-            console.log('Building export...')
-            this.mainWindow.webContents.send('export-pending', true)
+            console.log('MAIN: Building export...')
           }
 
           // wait 1 second
@@ -450,7 +437,7 @@ export class ReadwiseSync {
         } else {
           console.log('MAIN: unknown status in getExportStatus: ', data)
           this.mainWindow.webContents.send('export-error', 'Download Export failed')
-          await this.handleSyncError('Sync failed')
+          await this.handleSyncError(ReadwiseSyncMessage.FAILED)
           return
         }
       } else {
@@ -461,7 +448,7 @@ export class ReadwiseSync {
     } catch (e) {
       this.mainWindow.webContents.send('export-error', 'Download Export failed')
       console.log('MAIN: fetch failed in getExportStatus: ', e)
-      await this.handleSyncError('Sync failed')
+      await this.handleSyncError(ReadwiseSyncMessage.FAILED)
     }
   }
 
@@ -486,7 +473,7 @@ export class ReadwiseSync {
     this.store.set('currentSyncStatusID', 0)
   }
 
-  async handleSyncSuccess(msg = 'Synced', exportID: number | null = null): Promise<void> {
+  async handleSyncSuccess(msg = ReadwiseSyncMessage.SYNCED, exportID: number | null = null): Promise<void> {
     await this.clearSettingsAfterRun()
     this.store.set('lastSyncFailed', false)
     if (exportID) {
@@ -495,14 +482,14 @@ export class ReadwiseSync {
     console.log('MAIN: ', msg)
   }
 
-  async queueExport(statusId?: number, auto?: boolean): Promise<string> {
+  async queueExport(statusId?: number, auto?: boolean): Promise<void> {
     if (this.store.get('isSyncing')) {
-      console.log('Readwise sync already in progress')
+      console.log('MAIN: Readwise sync already in progress')
       this.mainWindow.webContents.send('toast:show', {
         variant: 'default',
-        message: 'Sync already in progress'
+        message: ReadwiseSyncMessage.SYNC_ALREADY_IN_PROGRESS.toString()
       })
-      return 'Sync already in progress'
+      return
     }
 
     console.log('MAIN: requesting archive...')
@@ -520,7 +507,7 @@ export class ReadwiseSync {
         message: 'No folder selected'
       })
       await this.handleSyncError('Sync failed')
-      return 'Sync failed'
+      return
     }
 
     if (!account) {
@@ -530,7 +517,7 @@ export class ReadwiseSync {
         message: 'No account selected'
       })
       await this.handleSyncError('Sync failed')
-      return 'Sync failed'
+      return
     }
 
     let parentDeleted = false
@@ -552,9 +539,9 @@ export class ReadwiseSync {
         await this.handleSyncError('Sync failed')
         this.mainWindow.webContents.send('toast:show', {
           variant: 'destructive',
-          message: 'Error: Failed to create folder'
+          message: 'Failed to create folder'
         })
-        return 'Sync failed'
+        return
       } else {
         console.log('MAIN: folder created')
       }
@@ -588,12 +575,7 @@ export class ReadwiseSync {
       })
     } catch (e) {
       console.log('MAIN: fetch failed in queueExport: ', e)
-      await this.handleSyncError('Sync failed')
-      this.mainWindow.webContents.send('toast:show', {
-        variant: 'destructive',
-        message: 'Synced failed'
-      })
-      return 'Sync failed'
+      return
     }
 
     if (response && response.ok) {
@@ -605,21 +587,21 @@ export class ReadwiseSync {
         await this.handleSyncError('Sync failed')
         this.mainWindow.webContents.send('toast:show', {
           variant: 'destructive',
-          message: 'Synced failed'
+          message: ReadwiseSyncMessage.FAILED.toString()
         })
-        return 'Sync failed'
+        return
       }
 
       const lastest_id = this.store.get('lastSavedStatusID')
       console.log(data.latest_id)
       if (data.latest_id <= lastest_id) {
         await this.handleSyncSuccess() // Data is already up to date
-        console.log('Readwise data is already up to date')
+        console.log('MAIN: Readwise data is already up to date')
         this.mainWindow.webContents.send('toast:show', {
-          variant: 'success',
-          message: 'Data is already up to date'
+          variant: 'default',
+          message: ReadwiseSyncMessage.ALREADY_SAVED.toString()
         })
-        return 'Data is already up to date'
+        return
       }
 
       this.store.set('lastSavedStatusID', data.latest_id)
@@ -627,36 +609,36 @@ export class ReadwiseSync {
 
       // save the sync status id so it can be polled until the archive is ready
       if (response.status === 201) {
-        console.log('Syncing Readwise data')
+        console.log('MAIN: Syncing Readwise data')
         await this.getExportStatus(data.latest_id, token, uuid)
         console.log('MAIN: queueExport done')
-        return 'Sync completed'
+        this.mainWindow.webContents.send('toast:show', {
+          variant: 'success',
+          message: ReadwiseSyncMessage.SYNCED.toString()
+        })
+        return
       } else {
-        await this.handleSyncSuccess('Synced', data.latest_id)
+        await this.handleSyncSuccess(ReadwiseSyncMessage.SYNCED, data.latest_id)
         console.log(
           'Latest Readwise sync already happended on your other device. Data should be up to date: ',
           response
         )
         this.mainWindow.webContents.send('toast:show', {
           variant: 'success',
-          message: 'Data is already up to date'
+          message: ReadwiseSyncMessage.SAVED_ON_ANOTHER_DEVICE.toString()
         })
-        return 'Data is already up to date'
+        return
       }
     } else {
       console.log('MAIN: bad response in queueExport: ', response)
       await this.handleSyncError(this.getErrorMessageFromResponse(response))
-      this.mainWindow.webContents.send('toast:show', {
-        variant: 'destructive',
-        message: 'Synced failed. Please try again.'
-      })
-      return 'Sync failed'
+      return
     }
   }
 
   // https://github.com/readwiseio/obsidian-readwise/blob/56d903b8d1bc18a7816603c300c6b0afa1241d0e/src/main.ts#L436
-  async syncHighlights(bookIds?: Array<string>, auto? = false): Promise<string> {
-    if (!this.store.get('token')) return 'Not connected to Readwise'
+  async syncHighlights(bookIds?: Array<string>, auto = false): Promise<void> {
+    if (!this.store.get('token')) return
 
     const failedBooks = this.store.get('failedBooks')
 
@@ -673,8 +655,8 @@ export class ReadwiseSync {
 
     if (!targetBookIds.length) {
       console.log('MAIN: no targetBookIds, checking for new highlights')
-      await this.queueExport()
-      return 'Synced'
+      await this.queueExport(undefined, auto)
+      return
     }
 
     console.log('MAIN: refreshing books: ', {
@@ -703,17 +685,17 @@ export class ReadwiseSync {
 
       if (response && response.ok) {
         await this.queueExport()
-        return 'Synced'
+        return
       } else {
         console.log(`MAIN: saving book id ${bookIds} to refresh later`)
         const booksToRefresh = store.get('booksToRefresh')
         const deduplicatedBookIds = new Set([...booksToRefresh, ...bookIds])
         this.store.set('booksToRefresh', Array.from(deduplicatedBookIds))
-        return 'Sync failed'
+        return 
       }
     } catch (e) {
       console.log('MAIN: fetch failed in syncBookHighlights: ', e)
-      return 'Sync failed'
+      return
     }
   }
 }
