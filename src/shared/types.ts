@@ -1,3 +1,11 @@
+export enum ReadwiseSyncMessage {
+  SYNCED = "Sync Completed",
+  FAILED = "Sync Failed",
+  ALREADY_SAVED = "Data is already saved",
+  SAVED_ON_ANOTHER_DEVICE = "Sync saved on another device",
+  SYNC_ALREADY_IN_PROGRESS = "Sync already in progress",
+}
+
 export interface ReadwiseAuthResponse {
   userAccessToken: string;
 }
@@ -64,4 +72,7 @@ export interface ReadwisePluginSettings {
   accounts: Array<string>;
 
   hasAppleNotesFileSystemPermission: boolean;
+
+  //** First time syncing */
+  firstSync: boolean;
 }

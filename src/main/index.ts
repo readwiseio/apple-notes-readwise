@@ -155,7 +155,7 @@ const createWindow = () => {
   })
 
   // Open the DevTools if the app is in development mode
-  // isDev && mainWindow.webContents.openDevTools()
+  isDev && mainWindow.webContents.openDevTools()
 }
 
 // This method will be called when Electron has finished
@@ -253,7 +253,13 @@ ipcMain.handle('sync-highlights', async (_event, auto?: boolean) => {
   }
 
   const readwiseSync = new ReadwiseSync(mainWindow, store)
-  return readwiseSync.syncHighlights(undefined, auto)
+  await readwiseSync.syncHighlights(undefined, auto)
+  mainWindow.webContents.send('syncing-complete')
+
+  if (store.get('firstSync')) {
+    store.set('firstSync', false)
+  }
+
 })
 
 ipcMain.handle('connect-to-readwise', async (event: Electron.Event) => {

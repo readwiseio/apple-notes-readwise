@@ -64,6 +64,7 @@
     "@radix-ui/react-slot": "^1.1.0",
     "@radix-ui/react-switch": "^1.1.1",
     "@radix-ui/react-toast": "^1.2.2",
+    "@radix-ui/react-tooltip": "^1.1.7",
     "@types/better-sqlite3": "^7.6.12",
     "@types/lodash": "^4.17.13",
     "@types/markdown-it": "^14.1.2",
