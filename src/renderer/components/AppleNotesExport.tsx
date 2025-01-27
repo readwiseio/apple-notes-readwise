@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from 'react'
-
 import { LoginCard } from './LoginCard'
 import { SettingsOptions } from './SettingsOptions'
 import { SyncingProgress } from './SyncingProgress'
@@ -103,7 +102,7 @@ export default function AppleNotesExport() {
           ) : (
             <SyncingProgress
               isFirstSync={state.isFirstSync}
-              setAppState={setState} // Pass setState to SyncingProgress
+              setAppState={setState}
               onShowSettings={setShowSettings}
             />
           )

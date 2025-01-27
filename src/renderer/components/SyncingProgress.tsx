@@ -24,7 +24,6 @@ export function SyncingProgress({
   setAppState,
   onShowSettings
 }: SyncingProgressProps) {
-  // const { toast } = useToast()
   const [exportPending, setExportPending] = useState(true)
   const [exportProgress, setExportProgress] = useState({
     current: 0,
