@@ -1,13 +1,20 @@
 import * as React from "react";
+
+import { useToast } from "../hooks/use-toast";
 import { Button } from "./ui/button";
 import { Label } from "./ui/label";
 
 export function LoginCard() {
+  const { toast } = useToast();
 
   async function handleLogin() {
     try {
       const msg = await window.api.readwise.connectToReadwise();
       console.log(msg);
+      toast({
+        variant: "success",
+        description: "Connected to Readwise",
+      });
     } catch (error) {
       console.error("Error connecting to Readwise:", error);
     }

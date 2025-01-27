@@ -47,14 +47,14 @@ export default function AppleNotesExport() {
     }
 
     const handleSyncStart = () => {
-        setState((prevState) => ({ ...prevState, isSyncing: true }))
-      }
+      setState((prevState) => ({ ...prevState, isSyncing: true }))
+    }
 
-      const handleSyncComplete = () => {
-        setState((prevState) => {
-          return { ...prevState, isSyncing: false };
-        });
-      };
+    const handleSyncComplete = () => {
+      setState((prevState) => {
+        return { ...prevState, isSyncing: false }
+      })
+    }
 
     // Login and permission events
     window.api.on('login-status', handleLoginStatus)
@@ -63,20 +63,17 @@ export default function AppleNotesExport() {
     // Syncing events
     window.api.on('syncing-start', handleSyncStart)
     window.api.on('syncing-complete', handleSyncComplete)
-    
+
     return () => {
       window.api.removeAllListeners('login-status', handleLoginStatus)
       window.api.removeAllListeners('permission-status', handlePermissionStatus)
       window.api.removeAllListeners('syncing-start', handleSyncStart)
       window.api.removeAllListeners('syncing-complete', handleSyncComplete)
     }
-  
   }, [])
 
-  console.log('state', state)
-
   async function handleSyncHighlights() {
-    setState((prevState) => ({ ...prevState, isSyncing: true }));
+    setState((prevState) => ({ ...prevState, isSyncing: true }))
     setShowSettings(false)
     try {
       await window.api.readwise.syncHighlights(undefined, false)
@@ -101,14 +98,14 @@ export default function AppleNotesExport() {
                 }))
               }
             />
-          ) : state.isSyncing || !showSettings ? (
-            <SyncingProgress
-            isFirstSync={state.isFirstSync}
-            setAppState={setState} // Pass setState to SyncingProgress
-            onShowSettings={setShowSettings}
-          />
-          ) : (
+          ) : showSettings ? (
             <SettingsOptions handleSyncHighlights={handleSyncHighlights} />
+          ) : (
+            <SyncingProgress
+              isFirstSync={state.isFirstSync}
+              setAppState={setState} // Pass setState to SyncingProgress
+              onShowSettings={setShowSettings}
+            />
           )
         ) : (
           <LoginCard />

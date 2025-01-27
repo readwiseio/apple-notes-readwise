@@ -1,25 +1,31 @@
 import React, { useEffect, useState } from 'react'
-
 import { CornerUpLeft } from 'lucide-react'
-
 import { Button } from './ui/button'
 import { Card, CardContent } from './ui/card'
 import { ExportStatusResponse } from '../../shared/types'
+import { useToast } from '../hooks/use-toast'
 // @ts-ignore
 import imageSyncExample from '../../images/sync-image-rendering.png'
 
 interface SyncingProgressProps {
   isFirstSync: boolean
-  setAppState: React.Dispatch<React.SetStateAction<{
-    isLoggedIn: boolean;
-    isSyncing: boolean;
-    isPermissioned: boolean;
-    isFirstSync: boolean;
-  }>>
+  setAppState: React.Dispatch<
+    React.SetStateAction<{
+      isLoggedIn: boolean
+      isSyncing: boolean
+      isPermissioned: boolean
+      isFirstSync: boolean
+    }>
+  >
   onShowSettings: (show: boolean) => void
 }
 
-export function SyncingProgress({ isFirstSync, setAppState, onShowSettings }: SyncingProgressProps) {
+export function SyncingProgress({
+  isFirstSync,
+  setAppState,
+  onShowSettings
+}: SyncingProgressProps) {
+  const { toast } = useToast()
   const [exportPending, setExportPending] = useState(true)
   const [exportProgress, setExportProgress] = useState({
     current: 0,
@@ -64,12 +70,20 @@ export function SyncingProgress({ isFirstSync, setAppState, onShowSettings }: Sy
     }
 
     const handleSyncComplete = async () => {
-      setSyncProgress((prev) => ({ ...prev, complete: true }));
+      setSyncProgress((prev) => ({ ...prev, complete: true }))
       // Take user to settings page if not the first sync
       if (!isFirstSync) {
         onShowSettings(true)
       }
-    };
+    }
+
+    const handleToast = (_event, data) => {
+      toast({
+        variant: data.variant,
+        description: data.message,
+        duration: 5000
+      })
+    }
 
     // Export progress
     window.api.on('export-progress', handleExportProgress)
@@ -80,12 +94,16 @@ export function SyncingProgress({ isFirstSync, setAppState, onShowSettings }: Sy
     window.api.on('syncing-progress', handleSyncProgress)
     window.api.on('syncing-complete', handleSyncComplete)
 
+    // Toast
+    window.api.on('toast:show', handleToast)
+
     return () => {
       window.api.removeAllListeners('export-progress', handleExportProgress)
       window.api.removeAllListeners('export-complete', handleExportComplete)
       window.api.removeAllListeners('syncing-progress', handleSyncProgress)
+      window.api.removeAllListeners('toast:show', handleToast)
     }
-  }, [isFirstSync, onShowSettings, setAppState])
+  }, [isFirstSync, onShowSettings, setAppState, toast])
 
   const handleTakeMeBack = () => {
     if (isFirstSync && syncProgress.complete) {
@@ -127,8 +145,8 @@ export function SyncingProgress({ isFirstSync, setAppState, onShowSettings }: Sy
         <div className="mt-2 flex flex-row items-center justify-center">
           <p className="text-sm p-1">
             PLEASE NOTE: Due to iCloud syncing, images may take a few minutes to appear in Apple
-            Notes after the sync is finished. Please wait for images to render before
-            attempting another sync to ensure they appear in future syncs.
+            Notes after the sync is finished. Please wait for images to render before attempting
+            another sync to ensure they appear in future syncs.
           </p>
           <img
             src={imageSyncExample}
