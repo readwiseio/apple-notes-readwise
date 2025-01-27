@@ -3,7 +3,6 @@ import { CornerUpLeft } from 'lucide-react'
 import { Button } from './ui/button'
 import { Card, CardContent } from './ui/card'
 import { ExportStatusResponse } from '../../shared/types'
-import { useToast } from '../hooks/use-toast'
 // @ts-ignore
 import imageSyncExample from '../../images/sync-image-rendering.png'
 
@@ -25,7 +24,7 @@ export function SyncingProgress({
   setAppState,
   onShowSettings
 }: SyncingProgressProps) {
-  const { toast } = useToast()
+  // const { toast } = useToast()
   const [exportPending, setExportPending] = useState(true)
   const [exportProgress, setExportProgress] = useState({
     current: 0,
@@ -77,14 +76,6 @@ export function SyncingProgress({
       }
     }
 
-    const handleToast = (_event, data) => {
-      toast({
-        variant: data.variant,
-        description: data.message,
-        duration: 5000
-      })
-    }
-
     // Export progress
     window.api.on('export-progress', handleExportProgress)
     window.api.on('export-complete', handleExportComplete)
@@ -94,16 +85,12 @@ export function SyncingProgress({
     window.api.on('syncing-progress', handleSyncProgress)
     window.api.on('syncing-complete', handleSyncComplete)
 
-    // Toast
-    window.api.on('toast:show', handleToast)
-
     return () => {
       window.api.removeAllListeners('export-progress', handleExportProgress)
       window.api.removeAllListeners('export-complete', handleExportComplete)
       window.api.removeAllListeners('syncing-progress', handleSyncProgress)
-      window.api.removeAllListeners('toast:show', handleToast)
     }
-  }, [isFirstSync, onShowSettings, setAppState, toast])
+  }, [isFirstSync, onShowSettings, setAppState])
 
   const handleTakeMeBack = () => {
     if (isFirstSync && syncProgress.complete) {
