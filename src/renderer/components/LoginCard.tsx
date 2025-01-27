@@ -7,7 +7,7 @@ export function LoginCard() {
   async function handleLogin() {
     try {
       const msg = await window.api.readwise.connectToReadwise();
-      console.log(msg); // Log the result from the backend
+      console.log(msg);
     } catch (error) {
       console.error("Error connecting to Readwise:", error);
     }
