@@ -117,6 +117,12 @@ export class ReadwiseSync {
     }
   }
 
+  sendToRenderer(channel: string, ...args: any[]) {
+    if (this.mainWindow && !this.mainWindow.isDestroyed()) {
+      this.mainWindow.webContents.send(channel, ...args)
+    }
+  }
+
   async writeZipEntryToAppleNotes(entry: zip.Entry, notesFolder: string, isICAccount: boolean, account: string) {    
     const originalFileName = entry.filename
     const originalName = originalFileName.split('/')[1].split('--')[0].split('(')[0].trim()
@@ -215,7 +221,7 @@ export class ReadwiseSync {
         if (result) {
           console.log(`MAIN: successfully created note: ${originalName} - (${bookId})`)
           this.bookIdsMap[bookId] = result // track the note id for future updates
-          this.mainWindow.webContents.send('syncing-progress')
+          this.sendToRenderer('syncing-progress')
         } else {
           console.log(`MAIN: failed to create note: ${originalName} - (${bookId})`)
           this.failedBooks.push(bookId)
@@ -252,6 +258,7 @@ export class ReadwiseSync {
     //   );
     //   // Send message to the renderer that the sync is completed
     //   this.mainWindow.webContents.send("syncing-complete");
+    //   this.sendToRenderer('syncing-complete')
     //   await this.handleSyncSuccess(ReadwiseSyncMessage.ALREADY_SAVED);
     //   return;
     // }
@@ -293,7 +300,7 @@ export class ReadwiseSync {
 
     if (!notesFolder) {
       console.log('MAIN: no folder selected')
-      this.mainWindow.webContents.send('toast:show', {
+      this.sendToRenderer('toast:show', {
         variant: 'destructive',
         message: 'No folder selected'
       })
@@ -303,7 +310,7 @@ export class ReadwiseSync {
 
     if (!account) {
       console.log('MAIN: no account selected')
-      this.mainWindow.webContents.send('toast:show', {
+      this.sendToRenderer('toast:show', {
         variant: 'destructive',
         message: 'No account selected'
       })
@@ -315,8 +322,9 @@ export class ReadwiseSync {
     this.failedBooks = this.store.get('failedBooks') || []
 
     if (entries.length) {
-      // Output entry names
-      this.mainWindow.webContents.send('syncing-start', entries.length)
+      this.sendToRenderer('syncing-start', entries.length)
+      console.log('MAIN: syncing', entries.length, 'entries')
+
       const concurrency = 5
       const running: Promise<void>[] = []
 
@@ -354,7 +362,7 @@ export class ReadwiseSync {
     await this.handleSyncSuccess(ReadwiseSyncMessage.SYNCED, exportID)
 
     // Send message to the renderer that the sync is completed
-    this.mainWindow.webContents.send('syncing-complete')
+    this.sendToRenderer('syncing-complete')
 
     console.log('MAIN: Synced!', exportID)
     console.log('MAIN: completed sync')
@@ -421,7 +429,7 @@ export class ReadwiseSync {
         if (WAITING_STATUSES.includes(data.taskStatus)) {
           if (data.booksExported) {
             console.log(`MAIN: Exporting Readwise data (${data.booksExported} / ${data.totalBooks}) ...`)
-            this.mainWindow.webContents.send('export-progress', data)
+            this.sendToRenderer('export-progress', data)
           } else {
             console.log('MAIN: Building export...')
           }
@@ -431,23 +439,23 @@ export class ReadwiseSync {
           // then keep polling
           await this.getExportStatus(statusID, token, uuid)
         } else if (SUCCESS_STATUSES.includes(data.taskStatus)) {
-          this.mainWindow.webContents.send('export-complete', true)
+          this.sendToRenderer('export-complete', true)
           console.log('Export completed')
           await this.downloadExport(statusID)
         } else {
           console.log('MAIN: unknown status in getExportStatus: ', data)
-          this.mainWindow.webContents.send('export-error', 'Download Export failed')
+          this.sendToRenderer('export-error', 'Download Export failed')
           await this.handleSyncError(ReadwiseSyncMessage.FAILED)
           return
         }
       } else {
         console.log('MAIN: bad response in getExportStatus: ', response)
-        this.mainWindow.webContents.send('export-error', 'Download Export failed')
+        this.sendToRenderer('export-error', 'Download Export failed')
         await this.handleSyncError(this.getErrorMessageFromResponse(response))
       }
     } catch (e) {
-      this.mainWindow.webContents.send('export-error', 'Download Export failed')
       console.log('MAIN: fetch failed in getExportStatus: ', e)
+      this.sendToRenderer('export-error', 'Download Export failed')
       await this.handleSyncError(ReadwiseSyncMessage.FAILED)
     }
   }
@@ -485,7 +493,7 @@ export class ReadwiseSync {
   async queueExport(statusId?: number, auto?: boolean): Promise<void> {
     if (this.store.get('isSyncing')) {
       console.log('MAIN: Readwise sync already in progress')
-      this.mainWindow.webContents.send('toast:show', {
+      this.sendToRenderer('toast:show', {
         variant: 'default',
         message: ReadwiseSyncMessage.SYNC_ALREADY_IN_PROGRESS.toString()
       })
@@ -502,7 +510,7 @@ export class ReadwiseSync {
 
     if (!readwiseDir) {
       console.log('MAIN: no folder selected')
-      this.mainWindow.webContents.send('toast:show', {
+      this.sendToRenderer('toast:show', {
         variant: 'destructive',
         message: 'No folder selected'
       })
@@ -512,7 +520,7 @@ export class ReadwiseSync {
 
     if (!account) {
       console.log('MAIN: no account selected')
-      this.mainWindow.webContents.send('toast:show', {
+      this.sendToRenderer('toast:show', {
         variant: 'destructive',
         message: 'No account selected'
       })
@@ -537,7 +545,7 @@ export class ReadwiseSync {
       if (!folderCreated) {
         console.log('MAIN: failed to create folder')
         await this.handleSyncError('Sync failed')
-        this.mainWindow.webContents.send('toast:show', {
+        this.sendToRenderer('toast:show', {
           variant: 'destructive',
           message: 'Failed to create folder'
         })
@@ -585,7 +593,7 @@ export class ReadwiseSync {
       if (!data) {
         console.log('MAIN: no data in queueExport')
         await this.handleSyncError('Sync failed')
-        this.mainWindow.webContents.send('toast:show', {
+        this.sendToRenderer('toast:show', {
           variant: 'destructive',
           message: ReadwiseSyncMessage.FAILED.toString()
         })
@@ -597,7 +605,7 @@ export class ReadwiseSync {
       if (data.latest_id <= lastest_id) {
         await this.handleSyncSuccess() // Data is already up to date
         console.log('MAIN: Readwise data is already up to date')
-        this.mainWindow.webContents.send('toast:show', {
+        this.sendToRenderer('toast:show', {
           variant: 'default',
           message: ReadwiseSyncMessage.ALREADY_SAVED.toString()
         })
@@ -612,7 +620,7 @@ export class ReadwiseSync {
         console.log('MAIN: Syncing Readwise data')
         await this.getExportStatus(data.latest_id, token, uuid)
         console.log('MAIN: queueExport done')
-        this.mainWindow.webContents.send('toast:show', {
+        this.sendToRenderer('toast:show', {
           variant: 'success',
           message: ReadwiseSyncMessage.SYNCED.toString()
         })
@@ -623,7 +631,7 @@ export class ReadwiseSync {
           'Latest Readwise sync already happended on your other device. Data should be up to date: ',
           response
         )
-        this.mainWindow.webContents.send('toast:show', {
+        this.sendToRenderer('toast:show', {
           variant: 'success',
           message: ReadwiseSyncMessage.SAVED_ON_ANOTHER_DEVICE.toString()
         })
