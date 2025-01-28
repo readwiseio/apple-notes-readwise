@@ -11,6 +11,7 @@ import { getAppleNoteClientID, getUserAuthToken, ReadwiseSync } from '@/lib/sync
 updateElectronApp()
 
 let mainWindow: BrowserWindow
+let syncInterval: NodeJS.Timeout | null = null
 
 const createWindow = () => {
   // Create the browser window.
@@ -129,18 +130,21 @@ const createWindow = () => {
       if (triggerOnLoad) {
         // if sync is already in progress, don't start another one
         if (Boolean(store.get('isSyncing'))) {
-          mainWindow.webContents.send('toast:show', {
-            variant: 'default',
-            message: 'Sync already in progress...'
-          })
-          console.log('Sync already in progress')
+          (!mainWindow.isDestroyed()) &&
+            mainWindow.webContents.send('toast:show', {
+              variant: 'default',
+              message: 'Sync already in progress...'
+            })
+            console.log('Sync already in progress')
           return
         }
 
-        mainWindow.webContents.send('toast:show', {
-          variant: 'default',
-          message: 'Initiating sync...'
-        })
+        (!mainWindow.isDestroyed()) && (
+          mainWindow.webContents.send('toast:show', {
+            variant: 'default',
+            message: 'Initiating sync...'
+          })
+        )
         const readwiseSync = new ReadwiseSync(mainWindow, store)
         readwiseSync.syncHighlights(undefined, true)
         console.log('Syncing highlights on load')
@@ -244,17 +248,22 @@ ipcMain.handle('request-apple-notes-permission', async (_) => {
 ipcMain.handle('sync-highlights', async (_event, auto?: boolean) => {
   // if sync is already in progress, don't start another one
   if (Boolean(store.get('isSyncing'))) {
-    mainWindow.webContents.send('toast:show', {
-      variant: 'default',
-      message: 'Sync already in progress...'
-    })
+    if (!mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('toast:show', {
+        variant: 'default',
+        message: 'Sync already in progress...'
+      })
+    }
     console.log('Sync already in progress')
     return
   }
 
   const readwiseSync = new ReadwiseSync(mainWindow, store)
   await readwiseSync.syncHighlights(undefined, auto)
-  mainWindow.webContents.send('syncing-complete')
+
+  if (!mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('syncing-complete')
+  }
 
   if (store.get('firstSync')) {
     store.set('firstSync', false)
@@ -299,10 +308,18 @@ async function configureScheduledSync(frequency: string) {
   const minutes = parseInt(frequency)
   let milliseconds = minutes * 60 * 1000 // convert minutes to milliseconds
   console.log('Settings interval to ', milliseconds)
+  
   if (!milliseconds) {
     // user set frequency to "Manual"
     return '0'
   }
+
+  // Clear any existing interval
+  if (syncInterval) {
+    console.log('Clearing existing sync interval...')
+    clearInterval(syncInterval);
+  }
+
   setInterval(async () => {
     console.log('Syncing highlights...', new Date())
     const readwiseSync = new ReadwiseSync(mainWindow, store)
