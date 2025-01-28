@@ -24,6 +24,8 @@ import {
   updateExistingNote
 } from './utils'
 
+const TAGS_TO_REPLACE_REGEX = /<\/p>|<\/h[1-6]>|<\/ul>|<\/ol>/g;
+
 const md = new MarkdownIt({
   breaks: true, // Convert '\n' in paragraphs into <br>
   html: true, // Enable HTML tags in source
@@ -143,9 +145,9 @@ export class ReadwiseSync {
         let contentToSaveHTML = md.render(content)
 
         // DEBUG: write the html file to the output folder
-        //fs.writeFileSync(`output/${originalName}.html`, contentToSaveHTML)
+        // fs.writeFileSync(`output/${originalName}.html`, contentToSaveHTML)
         // add a line break after each paragraph and heading tags for coesmetic purposes
-        contentToSaveHTML = contentToSaveHTML.replace(/<\/p>|<\/h[1-6]>|<\/ul>/g, '$&<br>');
+        contentToSaveHTML = contentToSaveHTML.replace(TAGS_TO_REPLACE_REGEX, '$&<br>');
 
         // DEBUG: write the html file to the output folder
         // fs.writeFileSync(`output/${originalName}-add-breaks.html`, contentToSaveHTML)
@@ -199,7 +201,7 @@ export class ReadwiseSync {
             // fs.writeFileSync(`output/${originalName}-updated.html`, udpatedContentHTML)
 
             // add a line break after each paragraph and heading tags for coesmetic purposes
-            udpatedContentHTML = udpatedContentHTML.replace(/<\/p>|<\/h[1-6]>|<\/ul>/g, '$&<br>');
+            udpatedContentHTML = udpatedContentHTML.replace(TAGS_TO_REPLACE_REGEX, '$&<br>');
 
             // DEBUG: write the updated html to the output folder
             // fs.writeFileSync(`output/${originalName}-updated-add-breaks.html`, udpatedContentHTML)
