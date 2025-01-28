@@ -655,7 +655,7 @@ export class ReadwiseSync {
 
     if (!targetBookIds.length) {
       console.log('MAIN: no targetBookIds, checking for new highlights')
-      await this.queueExport(undefined, auto)
+      await this.queueExport()
       return
     }
 
