@@ -320,11 +320,13 @@ async function configureScheduledSync(frequency: string) {
     clearInterval(syncInterval);
   }
 
-  setInterval(async () => {
+  syncInterval = setInterval(async () => {
     console.log('Syncing highlights...', new Date())
     const readwiseSync = new ReadwiseSync(mainWindow, store)
     await readwiseSync.syncHighlights(undefined, true)
   }, milliseconds)
+  console.log('Scheduled sync interval set to ', frequency)
+
   return frequency
 }
 
