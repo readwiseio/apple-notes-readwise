@@ -23,8 +23,7 @@ This app enables you to easily export all your digital highlights to Apple Notes
 
 ## Installation
 
-1. Download the latest release from the [Release](https://github.com/Scarvy/apple-notes-readwise/releases/tag/v0.1.1) section.
-2. Extract the download file and drag it to your Applications folder. From there, run the app executable.
+1. Go to [https://readwise.io/apple_notes](https://readwise.io/apple_notes/start).
 
 ---
 
@@ -37,7 +36,7 @@ This app enables you to easily export all your digital highlights to Apple Notes
    - If the folder doesn’t exist, it will be created.
 4. **Pick a sync frequency:**
    - Use the select box to pick a frequency your want your highlights to re-sync. (e.g. `Every 1 Hour`, `Every 12 Hours` etc.)
-5. **Initiate Sync:** Click the button to start the sync process. You'll get messages on the progress of the current sync.
+5. **Initiate Sync:** Click the 'Initiate Sync' button to start the sync process. You'll get messages on the progress of the current sync.
 6. **Success Notification:** Once completed, you’ll receive a success message.
 
 ---
