@@ -70,18 +70,6 @@ const createWindow = () => {
       click: async () => {
         shell.openExternal('mailto:scottcarvalho71@gmail.com')
       }
-    },
-    {
-      label: 'Disconnect from Readwise',
-      click: async () => {
-        store.set('token', '')
-        store.set('booksToRefresh', [])
-        store.set('failedBooks', [])
-        store.set('isSyncing', false)
-        store.set('booksIDsMap', {})
-        store.set('rw-AppleNotesClientId', '')
-        mainWindow.webContents.send('login-status', false)
-      }
     }
   ]
 
@@ -289,6 +277,20 @@ ipcMain.handle('connect-to-readwise', async (event: Electron.Event) => {
     console.log('Failed to connect to Readwise')
     return 'Failed to connect to Readwise'
   }
+})
+
+ipcMain.handle('disconnect-from-readwise', async (event: Electron.Event) => {
+  event.preventDefault()
+  store.set('token', '')
+  store.set('booksToRefresh', [])
+  store.set('failedBooks', [])
+  store.set('isSyncing', false)
+  store.set('booksIDsMap', {})
+  store.set('lastSyncFailed', false)
+  store.set('currentSyncStatusID', 0)
+  mainWindow.webContents.send('login-status', false)
+  console.log('Disconnected from Readwise')
+  return 'success'
 })
 
 ipcMain.handle('open-custom-format-window', (event: Electron.Event) => {

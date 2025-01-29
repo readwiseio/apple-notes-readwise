@@ -4,7 +4,11 @@ import { SettingsOptions } from './SettingsOptions'
 import { SyncingProgress } from './SyncingProgress'
 import PermissionPage from './PermissionPage'
 
-export default function AppleNotesExport() {
+interface AppleNotesExportProps {
+  onSettingsPageVisible: (visible: boolean) => void
+}
+
+export default function AppleNotesExport({ onSettingsPageVisible }: AppleNotesExportProps) {
   const [showSettings, setShowSettings] = useState(true)
   const [state, setState] = useState({
     isLoggedIn: false,
@@ -70,6 +74,10 @@ export default function AppleNotesExport() {
       window.api.removeAllListeners('syncing-complete', handleSyncComplete)
     }
   }, [])
+
+  useEffect(() => {
+    onSettingsPageVisible(state.isLoggedIn && state.isPermissioned && showSettings)
+  }, [state.isLoggedIn, state.isPermissioned, showSettings, onSettingsPageVisible])
 
   async function handleSyncHighlights() {
     setState((prevState) => ({ ...prevState, isSyncing: true }))

@@ -20,6 +20,9 @@ contextBridge.exposeInMainWorld('api', {
     connectToReadwise() {
       return ipcRenderer.invoke('connect-to-readwise')
     },
+    disconnect() {
+      return ipcRenderer.invoke('disconnect-from-readwise')
+    },
     syncHighlights() {
       return ipcRenderer.invoke('sync-highlights')
     },
