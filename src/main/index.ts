@@ -287,7 +287,7 @@ ipcMain.handle('disconnect-from-readwise', async (event: Electron.Event) => {
   store.set('isSyncing', false)
   store.set('booksIDsMap', {})
   store.set('lastSyncFailed', false)
-  store.set('rw-AppleNotesClientId', '')
+  store.set('currentSyncStatusID', 0)
   mainWindow.webContents.send('login-status', false)
   console.log('Disconnected from Readwise')
   return 'success'
