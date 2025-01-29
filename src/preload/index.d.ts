@@ -11,6 +11,7 @@ declare global {
         syncHighlights: () => Promise<string>;
         openCustomFormatWindow: () => void;
         connectToReadwise: () => Promise<string>;
+        disconnect: () => Promise<string>;
         updateSyncFrequency: (frequency: string) => Promise<string>;
       };
     };
