@@ -88,7 +88,7 @@ export class AppleNotesExtractor {
     console.log('MAIN: noteAccount: ', noteAccount)
 
     console.log('MAIN: Getting note folder...')
-    this.folder = (
+    const row = (
       await this.database.all`
         SELECT Z_PK as z_pk, ZTITLE2 as ztitle2 
         FROM ziccloudsyncingobject 
@@ -97,6 +97,14 @@ export class AppleNotesExtractor {
         AND zmarkedfordeletion = 0
       `
     )[0] // zmarkedfordeletion = 0 is to exclude deleted folders
+
+    if (!row) {
+      console.error('MAIN: Folder not found...')
+      return
+    }
+
+    this.folder = { z_pk: row.z_pk, ztitle: row.ztitle2 }
+
     console.log('MAIN: Folder: ', this.folder)
     await this.resolveAccount(noteAccount[0].z_pk)
 
@@ -104,7 +112,7 @@ export class AppleNotesExtractor {
     this.isICAccount = await this.resolveAccountType(account)
   }
 
-  async getAccountType(): boolean {
+  async getAccountType(): Promise<boolean> {
     return this.isICAccount
   }
 
@@ -113,15 +121,15 @@ export class AppleNotesExtractor {
     const dataPath = path.join(os.homedir(), NOTE_FOLDER_PATH)
 
     // confirm we still have access to this folder path
-    fs.access(dataPath, fs.constants.R_OK, (err) => {
-      if (err) {
-        console.log('MAIN: Failed to access Apple Notes data path...')
-        console.log('MAIN: Asking for permission for Apple Notes folder...')
-        this.store.set('hasAppleNotesFileSystemPermission', false)
-        return null
-      }
+    try {
+      await fsPromises.access(dataPath, fs.constants.R_OK)
       console.log('MAIN: Apple Notes data path found...')
-    })
+    } catch (err) {
+      console.log('MAIN: Failed to access Apple Notes data path...')
+      console.log('MAIN: Asking for permission for Apple Notes folder...')
+      this.store.set('hasAppleNotesFileSystemPermission', false)
+      return null
+    }
 
     const hasPermission = this.store.get('hasAppleNotesFileSystemPermission')
     if (hasPermission) {
