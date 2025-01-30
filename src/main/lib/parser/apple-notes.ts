@@ -392,36 +392,6 @@ export class AppleNotesExtractor {
         break
     }
 
-    console.log('Source Path: ', sourcePath)
-    console.log('Out Name: ', outName)
-    console.log('Out Ext: ', outExt)
-    console.log('Row: ', row)
-
-    console.log('Account: ', this.account)
-
-    try {
-      const binary = await this.getAttachmentSource(this.account, sourcePath)
-      const attachmentPath = path.join(os.homedir(), 'Documents', 'Readwise', 'Attachments')
-
-      if (!fs.existsSync(attachmentPath)) {
-        fs.mkdirSync(attachmentPath, { recursive: true })
-      }
-
-      // file = await this.vault.createBinary(
-      // 	attachmentPath, binary,
-      // 	{ ctime: this.decodeTime(row.ZCREATIONDATE), mtime: this.decodeTime(row.ZMODIFICATIONDATE) }
-      // );
-      // create a binary file
-      fs.writeFileSync(path.join(attachmentPath, `${outName}.${outExt}`), binary, 'utf8')
-    } catch (e) {
-      // this.ctx.reportFailed(sourcePath);
-      console.error(e)
-      return null
-    }
-
-    // this.resolvedFiles[id] = file;
-    // this.ctx.reportAttachmentSuccess(this.resolvedFiles[id].path);
-
     // the path to the original attachment file
     const attachmentFilePath = path.join(this.account.path, sourcePath)
     console.log('File: ', attachmentFilePath)
