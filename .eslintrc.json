@@ -15,9 +15,14 @@
   "parser": "@typescript-eslint/parser",
   "rules": {
     "@typescript-eslint/explicit-function-return-type": "off",
-    "@typescript-eslint/no-unused-vars": "off"
+    "@typescript-eslint/no-unused-vars": "off",
+    "import/no-unresolved":"off"
   },
-  "import/resolver": {
-    "project": ["./tsconfig.json"]
+  "settings": {
+    "import/resolver": {
+      "typescript": {
+        "project": "./tsconfig.base.json"
+      }
+    }
   }
 }
