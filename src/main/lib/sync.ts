@@ -32,17 +32,14 @@ const md = new MarkdownIt({
 });
 
 // Override the image renderer to prepend "file://" to local paths
-// @ts-ignore
 md.renderer.rules.image = function (tokens, idx, options, env, self) {
   const token = tokens[idx];
 
   // Get src attribute value
-  // @ts-ignore
   let src = token.attrs[token.attrIndex("src")][1];
 
   // If the src is a local path, prepend "file://"
   if (src.startsWith("/")) {
-    // @ts-ignore
     token.attrs[token.attrIndex("src")][1] = `file://${src}`;
   }
 

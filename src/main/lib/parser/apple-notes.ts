@@ -1,7 +1,6 @@
-// @ts-nocheck
 import { BrowserWindow, dialog } from 'electron'
 import Store from 'electron-store'
-import protobufjs from 'protobufjs'
+import { Root } from 'protobufjs'
 import path from 'node:path'
 import os from 'node:os'
 import fs from 'node:fs'
@@ -10,24 +9,21 @@ import { descriptor } from '@shared/descriptor'
 import zlib from 'node:zlib'
 import { NOTE_FOLDER_PATH, NOTE_DB } from '@shared/constants'
 import {
-  Note,
   ANNoteData,
-  NoteAccount,
   NoteFolder,
   ANAttachment,
   ANAccount,
-  SQLiteTagSpawned
+  SQLiteTagSpawned,
+  ANConverter,
+  ANConverterType
 } from '@shared/models'
 import type { ReadwisePluginSettings } from '../../../shared/types'
 import { NoteConverter } from './convert-note'
-// @ts-ignore
 import SQLiteTag from './sqlite/index.js'
-
-const { Root } = protobufjs
 
 // source: https://github.com/obsidianmd/obsidian-importer/blob/577036ad55fe79c92eeee6f961f8073da26622f5/src/filesystem.ts#L228
 export function splitext(name: string) {
-  let dotIndex = name.lastIndexOf('.')
+  const dotIndex = name.lastIndexOf('.')
   let basename = name
   let extension = ''
 
@@ -91,7 +87,7 @@ export class AppleNotesExtractor {
     console.log('MAIN: noteAccount: ', noteAccount)
 
     console.log('MAIN: Getting note folder...')
-    this.folder = (
+    const row = (
       await this.database.all`
         SELECT Z_PK as z_pk, ZTITLE2 as ztitle2 
         FROM ziccloudsyncingobject 
@@ -100,6 +96,14 @@ export class AppleNotesExtractor {
         AND zmarkedfordeletion = 0
       `
     )[0] // zmarkedfordeletion = 0 is to exclude deleted folders
+
+    if (!row) {
+      console.error('MAIN: Folder not found...')
+      return
+    }
+
+    this.folder = { z_pk: row.z_pk, ztitle: row.ztitle2 }
+
     console.log('MAIN: Folder: ', this.folder)
     await this.resolveAccount(noteAccount[0].z_pk)
 
@@ -107,7 +111,7 @@ export class AppleNotesExtractor {
     this.isICAccount = await this.resolveAccountType(account)
   }
 
-  async getAccountType(): boolean {
+  async getAccountType(): Promise<boolean> {
     return this.isICAccount
   }
 
@@ -116,15 +120,15 @@ export class AppleNotesExtractor {
     const dataPath = path.join(os.homedir(), NOTE_FOLDER_PATH)
 
     // confirm we still have access to this folder path
-    fs.access(dataPath, fs.constants.R_OK, (err) => {
-      if (err) {
-        console.log('MAIN: Failed to access Apple Notes data path...')
-        console.log('MAIN: Asking for permission for Apple Notes folder...')
-        this.store.set('hasAppleNotesFileSystemPermission', false)
-        return null
-      }
+    try {
+      await fsPromises.access(dataPath, fs.constants.R_OK)
       console.log('MAIN: Apple Notes data path found...')
-    })
+    } catch (err) {
+      console.log('MAIN: Failed to access Apple Notes data path...')
+      console.log('MAIN: Asking for permission for Apple Notes folder...')
+      this.store.set('hasAppleNotesFileSystemPermission', false)
+      return null
+    }
 
     const hasPermission = this.store.get('hasAppleNotesFileSystemPermission')
     if (hasPermission) {
@@ -134,7 +138,7 @@ export class AppleNotesExtractor {
         variant: 'default',
         message: 'Asking for permission for Apple Notes folder.'
       })
-      console.log('MAIN: Asking for permission for Apple Notes folder...')  
+      console.log('MAIN: Asking for permission for Apple Notes folder...')
       const names = dialog.showOpenDialogSync({
         defaultPath: dataPath,
         properties: ['openDirectory'],
@@ -242,7 +246,7 @@ export class AppleNotesExtractor {
   async resolveAccountType(name: string): Promise<boolean> {
     if (!this.database) {
       console.error('Database not found...')
-      return
+      return false
     }
     console.log('MAIN: checking account type for', name)
     const account = await this.database.get`
@@ -250,7 +254,7 @@ export class AppleNotesExtractor {
       WHERE z_ent = ${this.keys.ICAccount} AND zname = ${name}
     `
     console.log('Account: ', account ? account.zname : 'Non-iCloud Account')
-    return true ? account !== undefined : false
+    return account !== undefined ? true : false
   }
 
   async resolveAccount(id: number): Promise<void> {
@@ -272,22 +276,21 @@ export class AppleNotesExtractor {
     console.log('Account: ', this.account)
   }
 
-  decodeData(hexdata: string, converterType: any) {
-    // TODO: Implement the converterType
+  decodeData<T extends ANConverter>(hexdata: string, converterType: ANConverterType<T>) {
     console.log('Decoding note data...')
     const unzipped = zlib.gunzipSync(Buffer.from(hexdata, 'hex'))
     const decoded = this.protobufRoot.lookupType('ciofecaforensics.Document').decode(unzipped)
-    return new converterType(this, decoded, this.useHTMLformat)
+    return new converterType(this, decoded)
   }
 
-  async resolveAttachment(id: number, uti: ANAttachment | string): Promise<any | null> {
+  async resolveAttachment(id: number, uti: ANAttachment | string): Promise<string | null> {
     if (!this.database) {
       console.error('Database not found...')
       return null
     }
 
     console.log('Resolving attachment ID: ', id)
-    let sourcePath, outName, outExt, row, file
+    let sourcePath: string, row: any // eslint-disable-line @typescript-eslint/no-explicit-any
 
     switch (uti) {
       case ANAttachment.ModifiedScan:
@@ -309,8 +312,6 @@ export class AppleNotesExtractor {
           row.ZFALLBACKPDFGENERATION || '',
           'FallbackPDF.pdf'
         )
-        outName = 'Scan'
-        outExt = 'pdf'
         break
 
       case ANAttachment.Scan:
@@ -328,8 +329,6 @@ export class AppleNotesExtractor {
           'Previews',
           `${row.ZIDENTIFIER}-1-${row.ZSIZEWIDTH}x${row.ZSIZEHEIGHT}-0.jpeg`
         )
-        outName = 'Scan Page'
-        outExt = 'jpg'
         break
 
       case ANAttachment.Drawing:
@@ -356,9 +355,6 @@ export class AppleNotesExtractor {
         } else {
           sourcePath = path.join('FallbackImages', `${row.ZIDENTIFIER}.jpg`)
         }
-
-        outName = 'Drawing'
-        outExt = 'png'
         break
 
       default:
@@ -377,7 +373,6 @@ export class AppleNotesExtractor {
   			`
 
         sourcePath = path.join('Media', row.ZIDENTIFIER, row.ZGENERATION1 || '', row.ZFILENAME)
-        ;[outName, outExt] = splitext(row.ZFILENAME)
         break
     }
 
