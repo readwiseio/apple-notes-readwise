@@ -233,20 +233,9 @@ export class AppleNotesExtractor {
       return
     }
 
-    // Write the html to a file for debugging purposes... for now
-    const title = `${row.ztitle1}.html`
-    const file = path.join(os.homedir(), 'Documents', 'Readwise', title)
-    console.log(`Resolving note: ${title}`)
-
     // Decode the protobuf into HTML
     const converter = this.decodeData(row.zhexdata, NoteConverter)
-    console.log('Successfully decoded note data...')
     const html = await converter.format()
-    console.log('Successfully formatted note data to html...')
-    console.log('MAIN: Final HTML: ', html)
-
-    // Write the file
-    fs.writeFileSync(file, html, 'utf8')
     return html
   }
 
