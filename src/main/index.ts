@@ -125,7 +125,7 @@ const createWindow = () => {
 
 
         // if sync is already in progress, don't start another one
-        if (Boolean(store.get('isSyncing'))) {
+        if (store.get('isSyncing')) {
           (!mainWindow.isDestroyed()) &&
             mainWindow.webContents.send('toast:show', {
               variant: 'default',
@@ -253,7 +253,7 @@ ipcMain.handle('request-apple-notes-permission', async (_) => {
 
 ipcMain.handle('sync-highlights', async (_event, auto?: boolean) => {
   // if sync is already in progress, don't start another one
-  if (Boolean(store.get('isSyncing'))) {
+  if (store.get('isSyncing')) {
     if (!mainWindow.isDestroyed()) {
       mainWindow.webContents.send('toast:show', {
         variant: 'default',
@@ -326,7 +326,7 @@ ipcMain.handle('update-sync-frequency', async (_event, frequency: string) => {
 
 async function configureScheduledSync(frequency: string) {
   const minutes = parseInt(frequency)
-  let milliseconds = minutes * 60 * 1000 // convert minutes to milliseconds
+  const milliseconds = minutes * 60 * 1000 // convert minutes to milliseconds
   console.log('Settings interval to ', milliseconds)
   
   if (!milliseconds) {
@@ -351,7 +351,7 @@ async function configureScheduledSync(frequency: string) {
 }
 
 app.on('before-quit', () => {
-  if (Boolean(store.get('isSyncing'))) {
+  if (store.get('isSyncing')) {
     store.set('isSyncing', false)
     store.set('lastSyncFailed', true)
     store.set('currentSyncStatusID', 0)
