@@ -1,17 +1,23 @@
-import React, { useEffect } from 'react'
+import React, { useEffect, useState } from 'react'
 import { Card, CardContent } from './ui/card'
 // @ts-ignore
 import permissionImg from '../../images/permissions.png'
 
 export default function PermissionPage({ onIsPermissioned }) {
+  const [isRequesting, setIsRequesting] = useState(false)
+
   useEffect(() => {
+    if (isRequesting) return
+
     const getPermission = async () => {
+      setIsRequesting(true)
       const permissioned = await window.api.requestAppleNotesPermission()
       onIsPermissioned(permissioned)
+      setIsRequesting(false)
     }
 
     getPermission()
-  }, [onIsPermissioned])
+  }, [isRequesting, onIsPermissioned])
 
   return (
     <Card>
