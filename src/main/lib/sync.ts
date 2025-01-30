@@ -1,11 +1,8 @@
 // import fs from 'fs' // DEBUG: for writing files to the output folder
-import { store } from '@/lib/store'
 import * as zip from '@zip.js/zip.js'
-import { BrowserWindow } from 'electron'
 import Store from 'electron-store'
 import MarkdownIt from 'markdown-it'
-import { baseURL } from '../../shared/constants'
-
+import { BrowserWindow } from 'electron'
 import {
   ExportRequestResponse,
   ExportStatusResponse,
@@ -23,6 +20,8 @@ import {
   createNewNote,
   updateExistingNote
 } from './utils'
+import { baseURL } from '../../shared/constants'
+import { store } from '@/lib/store'
 
 const TAGS_TO_REPLACE_REGEX = /<\/p>|<\/h[1-6]>|<\/ul>|<\/ol>/g;
 
@@ -32,17 +31,15 @@ const md = new MarkdownIt({
 });
 
 // Override the image renderer to prepend "file://" to local paths
-// @ts-ignore
-md.renderer.rules.image = function (tokens, idx, options, env, self) {
+md.renderer.rules.image = function (tokens, idx, options, _, self) {
   const token = tokens[idx];
 
   // Get src attribute value
-  // @ts-ignore
-  let src = token.attrs[token.attrIndex("src")][1];
+  if (!token.attrs) return self.renderToken(tokens, idx, options);
+  const src = token.attrs[token.attrIndex("src")][1];
 
   // If the src is a local path, prepend "file://"
   if (src.startsWith("/")) {
-    // @ts-ignore
     token.attrs[token.attrIndex("src")][1] = `file://${src}`;
   }
 
@@ -106,7 +103,7 @@ export class ReadwiseSync {
   booksToRefresh: Array<string> = []
   failedBooks: Array<string> = []
 
-  constructor(mainWindow: BrowserWindow, store: any) {
+  constructor(mainWindow: BrowserWindow, store: Store<ReadwisePluginSettings>) {
     this.mainWindow = mainWindow
     this.store = store
     this.database = new AppleNotesExtractor(mainWindow, true, this.store)
@@ -173,7 +170,7 @@ export class ReadwiseSync {
               return
             }
             // get the note's body from the apple notes database
-            let existingContentMarkdown = await this.database.extractNoteHTML(
+            const existingContentMarkdown = await this.database.extractNoteHTML(
               note_pk
             )
             // DEBUG: write the existing note content to the output folder
@@ -189,7 +186,7 @@ export class ReadwiseSync {
             }
 
             // remove the top heading from the new content
-            let updatedContent = existingContentMarkdown + '\n\n' + content.replace(/^# .*?\n\s*/s, '');
+            const updatedContent = existingContentMarkdown + '\n\n' + content.replace(/^# .*?\n\s*/s, '');
 
             // DEBUG: write the updated markdown to the output folder
             // fs.writeFileSync(`output/${originalName}-updated.md`, updatedContent)

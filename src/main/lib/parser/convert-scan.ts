@@ -1,4 +1,4 @@
-// @ts-nocheck
+import { AppleNotesExtractor } from './apple-notes'
 import {
   ANAttachment,
   ANConverter,
@@ -6,7 +6,6 @@ import {
   ANMergableDataProto,
   ANTableObject
 } from '@shared/models'
-import { AppleNotesExtractor } from './apple-notes'
 
 // Source: https://github.com/obsidianmd/obsidian-importer/blob/master/src/formats/apple-notes/convert-scan.ts
 export class ScanConverter extends ANConverter {

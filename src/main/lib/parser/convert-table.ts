@@ -26,10 +26,10 @@ export class TableConverter extends ANConverter {
 	// This is used to store the actual data
 	objects: ANTableObject[];
 
-	rowCount: number = 0;
+	rowCount = 0;
 	rowLocations: ANTableUuidMapping = {};
 
-	columnCount: number = 0;
+	columnCount = 0;
 	columnLocations: ANTableUuidMapping = {};
 
 	static protobufType = 'ciofecaforensics.MergableDataProto';
@@ -79,14 +79,14 @@ export class TableConverter extends ANConverter {
 	/** Compute the location of the rows/columns, 
 	returning a mapping of the row/col uuid to its location in the table, and the total row/col amount */
 	findLocations(object: ANTableObject): [ANTableUuidMapping, number] {
-		let ordering: string[] = [];
-		let indices: ANTableUuidMapping = {};
+		const ordering: string[] = [];
+		const indices: ANTableUuidMapping = {};
 
-		for (let element of object.orderedSet.ordering.array.attachment) {
+		for (const element of object.orderedSet.ordering.array.attachment) {
 			ordering.push(this.uuidToString(element.uuid));
 		}
 
-		for (let element of object.orderedSet.ordering.contents.element) {
+		for (const element of object.orderedSet.ordering.contents.element) {
 			const key = this.getTargetUuid(element.key);
 			const value = this.getTargetUuid(element.value);
 
@@ -99,16 +99,16 @@ export class TableConverter extends ANConverter {
 	/** Use the computed indices to build a table array and format each cell */
 	async computeCells(cellData: ANTableObject): Promise<string[][]> {
 		// Fill the array to the table dimensions
-		let result = Array(this.rowCount).fill(0).map(() => Array(this.columnCount));
+		const result = Array(this.rowCount).fill(0).map(() => Array(this.columnCount));
 
 		// Put the values in the table	
-		for (let column of cellData.dictionary.element) {
-			let columnLocation = this.columnLocations[this.getTargetUuid(column.key)];
-			let rowData = this.objects[column.value.objectIndex];
+		for (const column of cellData.dictionary.element) {
+			const columnLocation = this.columnLocations[this.getTargetUuid(column.key)];
+			const rowData = this.objects[column.value.objectIndex];
 
-			for (let row of rowData.dictionary.element) {
-				let rowLocation = this.rowLocations[this.getTargetUuid(row.key)];
-				let rowContent = this.objects[row.value.objectIndex];
+			for (const row of rowData.dictionary.element) {
+				const rowLocation = this.rowLocations[this.getTargetUuid(row.key)];
+				const rowContent = this.objects[row.value.objectIndex];
 
 				if (!(rowLocation in result) || !rowContent) continue;
 
@@ -122,7 +122,7 @@ export class TableConverter extends ANConverter {
 
 	/** Convert the table array into a markdown table */
 	async format(): Promise<string> {
-		let table = await this.parse();
+		const table = await this.parse();
 		if (!table) return '';
 
 		let converted = '\n';
@@ -138,7 +138,7 @@ export class TableConverter extends ANConverter {
 	/** Get the index in this.uuids from an table object (which references another object which in turn has the UUID indice) */
 	getTargetUuid(entry: any): string {
 		const reference = this.objects[entry.objectIndex];
-		let uuidIndex = reference.customMap.mapEntry[0].value.unsignedIntegerValue;
+		const uuidIndex = reference.customMap.mapEntry[0].value.unsignedIntegerValue;
 		return this.uuids[uuidIndex];
 	}
 

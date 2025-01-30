@@ -8,7 +8,6 @@ export function LoginCard() {
 
   async function handleLogin() {
     try {
-      // @ts-ignore
       const msg = await window.api.readwise.connectToReadwise();
       console.log(msg);
       toast({

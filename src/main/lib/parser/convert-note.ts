@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { AppleNotesExtractor } from './apple-notes'
 import { ScanConverter } from './convert-scan'
 import { TableConverter } from './convert-table'
@@ -48,7 +47,7 @@ export class NoteConverter extends ANConverter {
     let i = 0
     let offsetStart = 0
     let offsetEnd = 0
-    let tokens: ANFragmentPair[] = []
+    const tokens: ANFragmentPair[] = []
 
     while (i < this.note.attributeRun.length) {
       let attr: ANAttributeRun
@@ -72,7 +71,7 @@ export class NoteConverter extends ANConverter {
 
       /* Then, since Obsidian doesn't like formatting crossing new lines or 
 			starting/ending at spaces, divide tokens based on that */
-      for (let fragment of attrText.split(FRAGMENT_SPLIT)) {
+      for (const fragment of attrText.split(FRAGMENT_SPLIT)) {
         if (!fragment) continue
         tokens.push({ attr, fragment })
       }
@@ -82,12 +81,12 @@ export class NoteConverter extends ANConverter {
   }
 
   async format(table = false): Promise<string> {
-    let fragments = this.parseTokens()
+    const fragments = this.parseTokens()
     let firstLineSkip = !table && this.importer.omitFirstLine && this.note.noteText.includes('\n')
     let converted = ''
 
     for (let j = 0; j < fragments.length; j++) {
-      let { attr, fragment } = fragments[j]
+      const { attr, fragment } = fragments[j]
 
       if (firstLineSkip) {
         if (fragment.includes('\n') || attr.attachmentInfo) {
@@ -293,7 +292,8 @@ export class NoteConverter extends ANConverter {
         this.listNumber++
         return `${prelude}${indent}${this.listNumber}. ${attr.fragment}`
       case ANStyleType.Checkbox:
-        const box = attr.paragraphStyle!.checklist?.done ? '[x]' : '[ ]'
+        // eslint-disable-next-line no-case-declarations
+        const box = attr.paragraphStyle?.checklist?.done ? '[x]' : '[ ]'
         return `${prelude}${indent}- ${box} ${attr.fragment}`
     }
 
@@ -392,7 +392,7 @@ export class NoteConverter extends ANConverter {
 			SELECT z_pk FROM ziccloudsyncingobject 
 			WHERE zidentifier = ${identifier.toUpperCase()}`
 
-    let file = await this.importer.resolveNote(row.Z_PK)
+    const file = await this.importer.resolveNote(row.Z_PK)
     if (!file) return '(unknown file link)'
 
     return this.app.fileManager.generateMarkdownLink(
@@ -435,7 +435,7 @@ function isBlockAttachment(attr: ANAttributeRun) {
 function attrEquals(a: ANAttributeRun, b: ANAttributeRun): boolean {
   if (!b || a.$type != b.$type) return false
 
-  for (let field of a.$type.fieldsArray) {
+  for (const field of a.$type.fieldsArray) {
     if (field.name == 'length') continue
 
     if (a[field.name]?.$type && b[field.name]?.$type) {

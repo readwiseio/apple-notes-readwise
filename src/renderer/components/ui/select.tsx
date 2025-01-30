@@ -1,4 +1,4 @@
-import React from 'react'
+import * as React from 'react'
 import { cn } from '../../lib/utils' // assuming `cn` is your utility for conditional class names
 
 interface Option {
