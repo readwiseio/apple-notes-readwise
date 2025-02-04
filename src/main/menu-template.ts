@@ -1,17 +1,30 @@
-import { app, shell, MenuItemConstructorOptions } from 'electron'
+import { app, shell, MenuItemConstructorOptions, dialog } from 'electron'
 
 export const template: MenuItemConstructorOptions[] = [
   {
     label: 'File',
     submenu: [
       {
-        label: 'Preferences',
+        label: 'About',
+        click: async () => {
+          dialog.showMessageBox({
+            title: 'About',
+            message: 'Readwise to Apple Notes',
+            detail: `Version ${app.getVersion()}`,
+            type: 'info',
+            buttons: ['OK']
+          })
+        }
+      },
+      {
+        label: 'Settings',
         click: async () => {
           shell.openExternal('https://readwise.io/export/apple-notes/preferences')
         }
       },
       {
-        label: 'Exit', accelerator: 'CommandOrControl+Q',
+        label: 'Exit',
+        accelerator: 'CommandOrControl+Q',
         click: () => {
           app.quit()
         }
