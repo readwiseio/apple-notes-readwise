@@ -1,4 +1,4 @@
-import React from 'react'
+import * as React from 'react'
 import { Label } from './ui/label'
 import { QuestionMarkCircledIcon } from '@radix-ui/react-icons'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip'

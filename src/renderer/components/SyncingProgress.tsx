@@ -1,9 +1,9 @@
-import React, { useEffect, useState } from 'react'
+import * as React from 'react'
+import { useEffect, useState } from 'react'
 import { CornerUpLeft } from 'lucide-react'
 import { Button } from './ui/button'
 import { Card, CardContent } from './ui/card'
 import { ExportStatusResponse } from '../../shared/types'
-// @ts-ignore
 import imageSyncExample from '../../images/sync-image-rendering.png'
 
 interface SyncingProgressProps {

@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react'
+import * as React from 'react'
+import { useEffect, useState } from 'react'
 import { Card, CardContent } from './ui/card'
-// @ts-ignore
 import permissionImg from '../../images/permissions.png'
 
 export default function PermissionPage({ onIsPermissioned }) {

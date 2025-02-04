@@ -1,6 +1,6 @@
 import { Message } from 'protobufjs'
-import { AppleNotesExtractor } from '@/lib/parser/apple-notes'
 import { BrowserWindow } from 'electron'
+import { AppleNotesExtractor } from '@/lib/parser/apple-notes'
 
 // internal types
 
@@ -44,7 +44,7 @@ export type SQLiteTagSpawned = {
 
 type SQLiteTable = SQLiteRow[];
 
-interface SQLiteRow extends Record<string, any> {
+export interface SQLiteRow extends Record<string, any> {
 	[member: string]: any;
 }
 

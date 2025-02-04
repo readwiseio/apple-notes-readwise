@@ -218,6 +218,6 @@ export default function SQLiteTag(db, options = {}) {
 		close: options.persistent ? (() => exec(null, null, 'close')) : noop,
 		raw
 	};
-};
+}
 
 module.exports = SQLiteTag;

@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from 'react'
+import * as React from 'react'
+import { useEffect, useState } from 'react'
 import { useToast } from './hooks/use-toast'
 import { Toaster } from './components/ui/toaster'
 import AppleNotesExport from './components/AppleNotesExport'

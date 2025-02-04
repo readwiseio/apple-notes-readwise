@@ -2,3 +2,4 @@ node_modules
 dist
 out
 .gitignore
+src/main/lib/parser/sqlite/*.js
