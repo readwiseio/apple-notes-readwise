@@ -16,6 +16,7 @@ import {
   ANConverter,
   ANConverterType,
   SQLiteTagSpawned,
+  SQLiteRow
 } from '@shared/models'
 import { descriptor } from '@shared/descriptor'
 import { NOTE_FOLDER_PATH, NOTE_DB } from '@shared/constants'
@@ -292,7 +293,7 @@ export class AppleNotesExtractor {
     }
 
     console.log('Resolving attachment ID: ', id)
-    let sourcePath: string, row: any
+    let sourcePath: string, row: SQLiteRow
 
     switch (uti) {
       case ANAttachment.ModifiedScan:
