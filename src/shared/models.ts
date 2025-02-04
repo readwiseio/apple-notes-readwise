@@ -44,7 +44,7 @@ export type SQLiteTagSpawned = {
 
 type SQLiteTable = SQLiteRow[];
 
-interface SQLiteRow extends Record<string, any> {
+export interface SQLiteRow extends Record<string, any> {
 	[member: string]: any;
 }
 
