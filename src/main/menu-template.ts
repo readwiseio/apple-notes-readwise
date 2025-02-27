@@ -63,7 +63,7 @@ export const template: MenuItemConstructorOptions[] = [
       {
         label: 'Learn More',
         click: async () => {
-          shell.openExternal('https://github.com/Scarvy/apple-notes-readwise/blob/main/README.md')
+          shell.openExternal('https://docs.readwise.io/readwise/docs/exporting-highlights/apple-notes')
         }
       },
       {

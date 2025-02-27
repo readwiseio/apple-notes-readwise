@@ -70,7 +70,7 @@ export default function App() {
           Questions? Please see our{' '}
           <a
             className="text-blue-500"
-            href="https://github.com/Scarvy/apple-notes-readwise?tab=readme-ov-file#readwise--to-apple-notes-export-"
+            href="https://docs.readwise.io/readwise/docs/exporting-highlights/apple-notes"
             target="_blank"
           >
             docs
