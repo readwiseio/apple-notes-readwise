@@ -130,6 +130,6 @@ This project is licensed under the [GNU GENERAL](LICENSE).
 
 ---
 
-## Contact
+## Support
 
-For any issues or feature requests, please open an issue on the [GitHub Issues](https://github.com/Scarvy/apple-notes-readwise/issues) page.
+Please see our [Documentation](https://docs.readwise.io/readwise/docs/exporting-highlights/apple-notes) or email us at [hello@readwise.io](mailto:hello@readwise.io) 🙂
