@@ -19,7 +19,8 @@ const config: ForgeConfig = {
         return {
           entitlements: './entitlements/entitlements.plist',
         };
-      }
+      },
+      identity: process.env.APPLE_SIGNING_IDENTITY || '',
     },
     osxNotarize: {
       appleId: process.env.APPLE_ID || '',
