@@ -8,6 +8,8 @@ on:
 
 jobs:
   publish:
+    permissions:
+      contents: write
     runs-on: macos-latest
     steps:
       - name: Checkout repository
@@ -34,6 +36,7 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           draft: true
+          prerelease: true
           files: |
             out/make/**/*.dmg
             out/make/**/*.zip
