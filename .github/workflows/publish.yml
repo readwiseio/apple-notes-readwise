@@ -52,6 +52,8 @@ jobs:
       - name: Build and Publish Electron App
         env:
           APPLE_SIGNING_IDENTITY: ${{ env.CERT_ID }}
+          GITHUB_OWNER: ${{ github.repository_owner }}
+          GITHUB_REPO: ${{ github.event.repository.name }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           npm run publish -- --arch=x64
