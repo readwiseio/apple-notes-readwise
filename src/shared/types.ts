@@ -38,7 +38,7 @@ export interface ReadwisePluginSettings {
   /** Automatically sync on load */
   triggerOnLoad: boolean;
 
-  /** Last successful sync status ID */
+  /** Whether the last sync failed */
   lastSyncFailed: boolean;
 
   /** Last successful sync status ID */
