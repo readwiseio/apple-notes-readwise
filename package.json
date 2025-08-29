@@ -6,7 +6,7 @@
   "main": ".vite/build/index.js",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Scarvy/apple-notes-readwise"
+    "url": "https://github.com/readwiseio/apple-notes-readwise"
   },
   "scripts": {
     "start": "electron-forge start",
